@@ -1,0 +1,20 @@
+# Multi-agent stock analysis system
+
+# API credentials (NEVER commit real tokens!)
+# Copy this file to model.json and fill in your token
+{
+    "api_key": "YOUR_TOKEN_HERE",
+    "base_url": "https://open.bigmodel.cn/api/anthropic",
+    "model": "glm-5.1",
+    "max_tokens": 2048,
+    "max_iterations": 10,
+    "max_retries": 3,
+    "retry_base_delay": 2.0,
+    "api_rate_limit": 0.5,
+    "api_rate_burst": 3,
+    "request_timeout": 120,
+    "connect_timeout": 10,
+    "read_timeout": 120,
+    "write_timeout": 30,
+    "pool_timeout": 10
+}

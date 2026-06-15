@@ -1,0 +1,20 @@
+# Sensitive files
+config/model.json
+.env
+*.pyc
+__pycache__/
+mailboxes/*.jsonl
+output/
+
+# Python
+*.egg-info/
+dist/
+build/
+.venv/
+
+# Backup files (created during editing, never commit these)
+*.bak
+
+# Test artifacts
+output/
+*.log

@@ -1,0 +1,7 @@
+# Python dependencies for multi-agent-stock
+anthropic>=0.96.0
+akshare
+tushare
+pandas
+numpy
+python-dotenv
