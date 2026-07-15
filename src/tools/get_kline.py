@@ -16,7 +16,7 @@ import time
 import logging
 from datetime import datetime, timedelta
 
-from src.tools.tushare_utils import get_tushare_client, normalize_code
+from src.tools.tushare_utils import get_tushare_client, normalize_code, TushareError
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +141,19 @@ def get_kline(
             "error": None,
         }
 
+    except TushareError as e:
+        duration_ms = int((time.time() - start_ms) * 1000)
+        logger.error(f"[get_kline] Tushare {e.kind}: {e}")
+        return {
+            "ok": False,
+            "data": None,
+            "count": 0,
+            "duration_ms": duration_ms,
+            "error": str(e),
+            "error_type": e.kind,
+            "data_degraded": True,
+            "retry_exhausted": True,
+        }
     except Exception as e:
         duration_ms = int((time.time() - start_ms) * 1000)
         logger.error(f"[get_kline] Error: {e}")

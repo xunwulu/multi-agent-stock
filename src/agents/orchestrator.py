@@ -1,14 +1,18 @@
 """
 orchestrator - 多智能体编排者
 
-Phase 1: 技术分析师 + 基本面分析师 (可选: 新闻 + 情绪)
-Phase 2: 看多/看空辩论 (bull/bear debater)
-Phase 3: 确定性汇总
+实际流程（6 阶段，每阶段都有失败降级，保证 run_analysis 总返回有效 result dict）:
+  Phase 1: 三个分析师并行（技术 / 基本面 / 新闻），ThreadPoolExecutor
+  Phase 2: 看多/看空辩论（bull/bear debater，自由文本）
+  Phase 3: 研究经理（LLM）评判辩论，调整评分与方向；失败降级为正则启发式
+  Phase 4: 三方风险辩论（激进 / 中性 / 保守）
+  Phase 5: 风险经理（LLM）评估风险等级与仓位；失败降级为确定性规则
+  Phase 6: 交易员（LLM）输出可执行决策；失败降级为确定性规则映射
 
 设计选择:
   - 代码编排（非 LLM 编排），确定性 Python 流程
-  - 顺序执行分析师 + 辩论循环
-  - 辩论后确定性汇总（加权平均评分）
+  - 分析师并行 + 辩论循环 + 多层 LLM 研判
+  - 每层 LLM 失败都有确定性兜底，run_analysis 永不抛异常
 """
 
 import json
@@ -32,6 +36,7 @@ from src.core.submit_tool import get_submit_tool
 from src.agents.debate_loop import DebateLoop
 from src.agents.risk_loop import RiskLoop
 
+from src.tools.tushare_utils import enable_cache, disable_cache, get_cache_stats
 from src.tools.get_kline import get_kline
 from src.tools.calc_technical import calc_technical
 from src.tools.get_daily_basic import get_daily_basic
@@ -54,6 +59,12 @@ _INJECT_DATA_MAX_CHARS = 30000
 # fund: 14 (FUNDAMENTALS_ANALYST_SCHEMA.scoring_breakdown_fields)
 # news: 6 (NEWS_ANALYST_SCHEMA.scoring_breakdown_fields)
 _EXPECTED_BREAKDOWN_COUNTS = {"tech": 11, "fund": 14, "news": 6}
+
+# 第4刀: 阶段超时围栏(防各阶段累积超时挂死)
+# ANALYST_TIMEOUT: 单个分析师最长运行时间(秒), 超时走降级
+# TOTAL_BUDGET: 单只股票完整分析的总预算(秒), 超时后辩论/交易员跳过 LLM 走确定性兜底
+ANALYST_TIMEOUT = 180
+TOTAL_BUDGET = 600
 
 
 def _truncate_inject_data(data: dict) -> str:
@@ -100,6 +111,10 @@ class MultiAgentOrchestrator:
             }
         """
         start_time = time.time()
+        # 第3刀: 开启请求级缓存(同次分析内数据不变, 跨股票清空), 减半 Tushare 调用
+        enable_cache()
+        # 第4刀: 总预算熔断 - 超时后各阶段跳过 LLM 走确定性兜底, 防累积挂死
+        deadline = start_time + TOTAL_BUDGET
         state = SharedState(stock_code)
 
         # Initialize all pipeline variables to safe defaults so that if any
@@ -136,7 +151,22 @@ class MultiAgentOrchestrator:
             results = []
             for future in [tech_future, fund_future, news_future]:
                 try:
-                    results.append(future.result())
+                    results.append(future.result(timeout=ANALYST_TIMEOUT))
+                except concurrent.futures.TimeoutError:
+                    logger.error(
+                        f"[Orchestrator] Analyst timed out after {ANALYST_TIMEOUT}s, degrading"
+                    )
+                    results.append({
+                        "success": False,
+                        "content": "",
+                        "structured_output": None,
+                        "tool_calls": 0,
+                        "iterations": 0,
+                        "duration_ms": ANALYST_TIMEOUT * 1000,
+                        "error": f"Analyst timeout after {ANALYST_TIMEOUT}s",
+                        "error_type": "timeout",
+                        "token_usage": None,
+                    })
                 except Exception as e:
                     logger.error(f"[Orchestrator] Analyst crashed: {e}")
                     results.append({
@@ -147,6 +177,7 @@ class MultiAgentOrchestrator:
                         "iterations": 0,
                         "duration_ms": 0,
                         "error": f"Thread crashed: {e}",
+                        "token_usage": None,
                     })
             tech_result, fund_result, news_result = results
 
@@ -270,7 +301,8 @@ class MultiAgentOrchestrator:
 
         # Step 5: 看多/看空辩论 (Phase 2)
         debate_result = None
-        if not skip_debate and _is_valid_analysis(tech_json) and _is_valid_analysis(fund_json):
+        if (not skip_debate and time.time() <= deadline
+                and _is_valid_analysis(tech_json) and _is_valid_analysis(fund_json)):
             logger.info(
                 f"[Orchestrator] Phase 2.5: Starting debate "
                 f"(rounds={debate_rounds})..."
@@ -353,7 +385,8 @@ class MultiAgentOrchestrator:
         # Step 6a: 风险辩论层 (Phase 4-5)
         risk_result = None
         risk_manager_data = None
-        if debate_result and combined.get("synthesis_method", "") != "deterministic":
+        if (debate_result and time.time() <= deadline
+                and combined.get("synthesis_method", "") != "deterministic"):
             logger.info("[Orchestrator] Phase 4-5: Running risk debate...")
             try:
                 # Phase 4: 三方风险辩论
@@ -422,11 +455,33 @@ class MultiAgentOrchestrator:
             f"综合{combined['combined_score']}分({combined['combined_direction']})"
         )
 
-        # Step 6b: Trader 交易决策
-        trader_result_data = self._run_trader(
-            stock_code, tech_json, fund_json, debate_result, combined,
-            news_json=news_json, risk_result=risk_result
-        )
+        # Step 6b: Trader 交易决策 (第4刀: 超时跳过 LLM 走确定性兜底)
+        if time.time() <= deadline:
+            trader_result_data = self._run_trader(
+                stock_code, tech_json, fund_json, debate_result, combined,
+                news_json=news_json, risk_result=risk_result
+            )
+        else:
+            logger.warning(
+                f"[Orchestrator] Total budget {TOTAL_BUDGET}s exceeded before trader "
+                f"(elapsed={int(time.time() - start_time)}s), skip to deterministic fallback"
+            )
+            trader_result_data = None
+
+        # D3: 价值股左侧强制覆盖 - LLM 可能保守漏判, 满足口子强制 buy(全天候生效)
+        if trader_result_data:
+            trader_result_data, _overridden = self._apply_value_left_override(
+                trader_result_data, combined, fund_json
+            )
+            if _overridden:
+                combined["synthesis_method"] = (
+                    combined.get("synthesis_method", "") + "_value_left_override"
+                )
+                logger.info(
+                    f"[Orchestrator] 价值股左侧强制覆盖: "
+                    f"score={combined.get('combined_score')} + 低PE+好OCF+增持 -> buy(weak)"
+                )
+
         if trader_result_data:
             state.set("decision", trader_result_data["action"])
             state.set("target_price", trader_result_data["target_price"])
@@ -499,6 +554,19 @@ class MultiAgentOrchestrator:
             combined.setdefault("synthesis_method", "deterministic")
             combined["synthesis_method"] = combined["synthesis_method"] + "_deterministic_trader"
 
+        # C: 诚实降级透传 - 汇总各分析师/阶段降级状态, 让船长在 result.json 一眼看到
+        _syn_method = combined.get("synthesis_method") or ""
+        degradation_summary = {
+            "tech_analyst": tech_result.get("error_type"),
+            "fund_analyst": fund_result.get("error_type"),
+            "news_analyst": news_result.get("error_type"),
+            "synthesis_method": _syn_method,
+            "overall_degraded": bool(
+                tech_result.get("error_type") or fund_result.get("error_type")
+                or news_result.get("error_type")
+                or "deterministic" in _syn_method or "regex" in _syn_method
+            ),
+        }
         result = {
             "stock_code": stock_code,
             "state": state.to_dict(),
@@ -511,6 +579,7 @@ class MultiAgentOrchestrator:
                 "duration_ms": tech_result["duration_ms"],
                 "token_usage": tech_result.get("token_usage"),
                 "validation": tech_validation,
+                "error_type": tech_result.get("error_type"),
             },
             "fund_report": {
                 "success": fund_result["success"],
@@ -521,6 +590,7 @@ class MultiAgentOrchestrator:
                 "duration_ms": fund_result["duration_ms"],
                 "token_usage": fund_result.get("token_usage"),
                 "validation": fund_validation,
+                "error_type": fund_result.get("error_type"),
             },
             "news_report": {
                 "success": news_result["success"],
@@ -531,8 +601,10 @@ class MultiAgentOrchestrator:
                 "duration_ms": news_result["duration_ms"],
                 "token_usage": news_result.get("token_usage"),
                 "validation": news_validation,
+                "error_type": news_result.get("error_type"),
             },
             "combined_report": combined,
+            "degradation_summary": degradation_summary,
             "success": tech_result["success"] and fund_result["success"],
             "duration_ms": duration_ms,
             "error": None,
@@ -544,6 +616,15 @@ class MultiAgentOrchestrator:
         if risk_result:
             result["risk_result"] = risk_result
 
+        # 第3刀: 关闭缓存(跨股票隔离), 打印命中统计便于验证"调用减半"
+        stats = get_cache_stats()
+        total = stats["hit"] + stats["miss"]
+        hit_rate = (stats["hit"] / total * 100) if total else 0
+        logger.info(
+            f"[Orchestrator] Cache: hit={stats['hit']}, miss={stats['miss']}, "
+            f"hit_rate={hit_rate:.0f}%"
+        )
+        disable_cache()
         return result
 
     def _run_technical_analyst(self, stock_code: str, max_iterations: int) -> dict:
@@ -1430,6 +1511,28 @@ class MultiAgentOrchestrator:
         # _current_price 已在 validation 前注入
         return result
 
+    def _apply_value_left_override(self, trader_data, combined, fund_json):
+        """D3: 价值股左侧强制覆盖。满足口子5条件(value+低PE+好OCF+增持+够分)则强制 buy(weak)。
+
+        LLM trader 在 direction neutral 时可能保守漏判，此方法确保价值口子全天候生效
+        (不只 fallback 路径)。返回 (trader_data, overridden: bool)。
+        """
+        if not trader_data or trader_data.get("action") == "buy":
+            return trader_data, False
+        if (
+            combined.get("stock_type") == "value"
+            and isinstance(fund_json.get("pe_ttm"), (int, float))
+            and 0 < fund_json.get("pe_ttm") <= 30
+            and isinstance(fund_json.get("ocf_to_np_ratio"), (int, float))
+            and fund_json.get("ocf_to_np_ratio") >= 1.0
+            and fund_json.get("insider_signal") in ("net_buy", "leaning_buy")
+            and combined.get("combined_score", 0) >= 52
+        ):
+            trader_data["action"] = "buy"
+            trader_data["action_strength"] = "weak"
+            return trader_data, True
+        return trader_data, False
+
     def _deterministic_trader_fallback(
         self, combined: dict, tech_json: dict, fund_json: dict
     ) -> dict:
@@ -1442,8 +1545,22 @@ class MultiAgentOrchestrator:
         direction = combined.get("combined_direction", "neutral")
         winner = combined.get("debate_winner", "draw")
 
+        # D3: 价值股左侧口子 - 低PE+好现金流+机构增持+分数够, 不依赖 direction bullish(左侧逆势)
+        # 多重AND精准挡题材股: 有研新材PE116/OCF-13.8x 不满足 PE<=30 或 OCF>=1.0
+        is_value_left = (
+            combined.get("stock_type") == "value"
+            and isinstance(fund_json.get("pe_ttm"), (int, float))
+            and 0 < fund_json.get("pe_ttm") <= 30
+            and isinstance(fund_json.get("ocf_to_np_ratio"), (int, float))
+            and fund_json.get("ocf_to_np_ratio") >= 1.0
+            and fund_json.get("insider_signal") in ("net_buy", "leaning_buy")
+        )
+
         # 1. action 决策
-        if score >= 75 and "bullish" in direction:
+        if is_value_left and score >= 52:
+            action = "buy"
+            strength = "weak"
+        elif score >= 75 and "bullish" in direction:
             action = "buy"
             strength = "strong" if score >= 85 else "normal"
         elif score >= 60 and "bullish" in direction:
@@ -1455,6 +1572,9 @@ class MultiAgentOrchestrator:
         elif score <= 40 and "bearish" in direction:
             action = "sell"
             strength = "weak"
+        elif 30 <= score < 45 and winner == "draw" and "neutral" in direction:
+            action = "watch"
+            strength = "normal"
         else:
             action = "hold"
             strength = "normal"

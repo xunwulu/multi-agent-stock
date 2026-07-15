@@ -76,6 +76,10 @@ INDICATOR_FIELDS = [
 ]
 
 
+# 核心报表(降级分级判定用); 单表模式下动态收缩到只检查请求的表
+CORE_REPORTS = ("income", "balancesheet", "cashflow", "indicators")
+
+
 def get_financials(
     code: str,
     start_date: str = "",
@@ -111,6 +115,7 @@ def get_financials(
         service = get_tushare_client()
 
         all_data = {}
+        fetch_failures = {}  # 追踪各报表获取失败原因，用于降级标记
 
         fetch_map = {
             "income": ("income", INCOME_FIELDS),
@@ -161,6 +166,7 @@ def get_financials(
             except Exception as e:
                 logger.warning(f"[get_financials] {api_name} failed: {e}")
                 all_data[key] = []
+                fetch_failures[key] = str(e)
 
         # 获取分红数据
         try:
@@ -187,6 +193,7 @@ def get_financials(
         except Exception as e:
             logger.warning(f"[get_financials] dividend failed: {e}")
             all_data["dividend"] = []
+            fetch_failures["dividend"] = str(e)
 
         # 计算统计摘要
         summary = _build_summary(all_data)
@@ -199,6 +206,30 @@ def get_financials(
             f"{total_records} records, {duration_ms}ms"
         )
 
+        # 降级分级: 根据核心报表获取情况标记数据完整度
+        # 保守版: 保持 ok=True 不变(不破坏现有成功判定), 只新增标记字段供上游识别
+        # 升级版(观察后): 全空时改 ok=False, 让 quality.py 自动拦截
+        # 单表模式下只检查请求的表, 避免把"没请求的表"误判为失败
+        if report_type == "all":
+            checked = list(CORE_REPORTS)
+        elif report_type in CORE_REPORTS:
+            checked = [report_type]
+        else:
+            checked = []
+        core_failed = [k for k in checked if not all_data.get(k)]
+        if not core_failed:
+            data_status, data_degraded = "complete", False
+            degraded_reports = []
+        else:
+            data_degraded = True
+            degraded_reports = core_failed
+            data_status = "empty" if len(core_failed) == len(checked) else "partial"
+        if data_degraded:
+            logger.warning(
+                f"[get_financials] {ts_code} data degraded: "
+                f"{data_status}, missing={degraded_reports}"
+            )
+
         result = {
             "ok": True,
             "data": all_data,
@@ -206,6 +237,10 @@ def get_financials(
             "summary": summary,
             "duration_ms": duration_ms,
             "error": None,
+            "data_status": data_status,
+            "data_degraded": data_degraded,
+            "degraded_reports": degraded_reports,
+            "fetch_failures": fetch_failures,
         }
 
         # 评分建议
@@ -224,6 +259,10 @@ def get_financials(
             "count": 0,
             "duration_ms": duration_ms,
             "error": str(e),
+            "data_status": "error",
+            "data_degraded": True,
+            "degraded_reports": list(CORE_REPORTS),
+            "fetch_failures": {"_outer": str(e)},
         }
 
 

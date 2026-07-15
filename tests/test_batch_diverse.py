@@ -93,8 +93,20 @@ def run_single(stock_code: str, stock_name: str) -> dict:
         "combined_direction": combined.get("combined_direction"),
         "debate_winner": combined.get("debate_winner"),
         "action": trader.get("action"),
+        "action_strength": trader.get("action_strength"),
         "confidence": trader.get("confidence_total"),
+        "confidence_label": trader.get("confidence_label"),
         "risk_level": trader.get("risk_level"),
+        "risk_score": trader.get("risk_score"),
+        "target_price": trader.get("target_price"),
+        "stop_loss": trader.get("stop_loss"),
+        "position_advice": trader.get("position_advice"),
+        "position_range": trader.get("position_range"),
+        "time_horizon": trader.get("time_horizon"),
+        "entry_conditions": trader.get("entry_conditions"),
+        "take_profit_levels": trader.get("take_profit_levels"),
+        "reasoning_summary": (trader.get("reasoning") or "")[:200],
+        "warnings": trader.get("warnings"),
         "result_file": out_file,
     }
 
@@ -119,6 +131,135 @@ def run_single(stock_code: str, stock_name: str) -> dict:
     )
 
     return summary
+
+
+_ACTION_CN = {
+    "buy": "买入",
+    "sell": "卖出",
+    "hold": "持有",
+    "watch": "观望",
+}
+
+
+def _action_cn(action):
+    if not action:
+        return "--"
+    cn = _ACTION_CN.get(action, action)
+    return f"{action}({cn})"
+
+
+def _fmt_price(v):
+    if v is None:
+        return "--"
+    if isinstance(v, (int, float)):
+        return f"{v:.2f}"
+    return str(v)
+
+
+def _score_str(v):
+    return f"{v:.0f}" if isinstance(v, (int, float)) else "--"
+
+
+def render_watchlist_md(all_results, output_path):
+    """Render batch results into a captain-readable markdown decision board.
+
+    Two layers: a compact comparison table (one row per stock, sorted by
+    combined score) so the captain can scan across stocks, then per-stock
+    details (entry conditions, reasoning, warnings) for drilling in.
+    Mirrors the trader field layout used in scripts/gen_report.py.
+    """
+    lines = []
+
+    def w(s=""):
+        lines.append(s)
+
+    sorted_results = sorted(
+        all_results,
+        key=lambda r: (
+            r.get("combined_score")
+            if isinstance(r.get("combined_score"), (int, float))
+            else -1
+        ),
+        reverse=True,
+    )
+    ok = sum(1 for r in all_results if r.get("success"))
+
+    w("# 批量决策看板")
+    w()
+    w(f"> 共 {len(all_results)} 只 | 成功 {ok} 只 | 按综合分降序")
+    w()
+    w("---")
+    w()
+    w("## 一、横向对比表")
+    w()
+    w("| 股票 | 名称 | 综合分 | 方向 | 动作 | 目标价 | 止损 | 仓位 | 置信 | 风险 | 耗时 |")
+    w("|------|------|--------|------|------|--------|------|------|------|------|------|")
+    for r in sorted_results:
+        pos = r.get("position_advice") or "--"
+        if r.get("position_range"):
+            pos = f"{pos}({r['position_range']})"
+        dur = r.get("duration_s")
+        dur_str = f"{dur:.0f}s" if isinstance(dur, (int, float)) else "--"
+        w(
+            f"| {r.get('stock_code', '--')} "
+            f"| {r.get('stock_name', '--')} "
+            f"| {_score_str(r.get('combined_score'))} "
+            f"| {r.get('combined_direction') or '--'} "
+            f"| {_action_cn(r.get('action'))} "
+            f"| {_fmt_price(r.get('target_price'))} "
+            f"| {_fmt_price(r.get('stop_loss'))} "
+            f"| {pos} "
+            f"| {_score_str(r.get('confidence'))} "
+            f"| {r.get('risk_level') or '--'} "
+            f"| {dur_str} |"
+        )
+    w()
+
+    w("## 二、逐只决策详情")
+    w()
+    for r in sorted_results:
+        code = r.get("stock_code", "--")
+        name = r.get("stock_name", "--")
+        w(
+            f"### {name}（{code}）— 综合 "
+            f"{_score_str(r.get('combined_score'))} | {_action_cn(r.get('action'))}"
+        )
+        w()
+        pos = r.get("position_advice") or "--"
+        pos_range = r.get("position_range") or "--"
+        w(
+            f"- 方向: {r.get('combined_direction') or '--'} "
+            f"| 辩论胜方: {r.get('debate_winner') or '--'}"
+        )
+        w(
+            f"- 目标价: **{_fmt_price(r.get('target_price'))}** "
+            f"| 止损: **{_fmt_price(r.get('stop_loss'))}** "
+            f"| 仓位: {pos}({pos_range})"
+        )
+        w(
+            f"- 置信度: {_score_str(r.get('confidence'))} "
+            f"| 风险等级: {r.get('risk_level') or '--'} "
+            f"| 时间框架: {r.get('time_horizon') or '--'}"
+        )
+        ec = r.get("entry_conditions") or []
+        if ec:
+            w("- 入场条件:")
+            for c in ec:
+                w(f"  - {c}")
+        reasoning = (r.get("reasoning_summary") or "").strip()
+        if reasoning:
+            w(f"- 决策理由: {reasoning}")
+        warns = r.get("warnings") or []
+        if warns:
+            w("- 风险提示:")
+            for wa in warns:
+                w(f"  - {wa}")
+        w()
+
+    output = "\n".join(lines)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(output)
+    return output_path
 
 
 def main():
@@ -186,6 +327,13 @@ def main():
     with open(summary_file, "w", encoding="utf-8") as f:
         json.dump(all_results, f, ensure_ascii=False, indent=2)
     logger.info(f"Summary saved to {summary_file}")
+
+    # Captain-readable markdown decision board (table + per-stock details)
+    watchlist_md = os.path.join(
+        project_root, "output", "batch_diverse", "batch_watchlist.md"
+    )
+    render_watchlist_md(all_results, watchlist_md)
+    logger.info(f"Readable watchlist saved to {watchlist_md}")
 
     return all_results
 
