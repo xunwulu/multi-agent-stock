@@ -57,6 +57,7 @@ class RiskLoop:
         research_manager_output: dict,
         reports_summary: str,
         max_rounds: int = 1,
+        deadline: float = None,
     ) -> dict:
         """
         运行三方风险辩论
@@ -83,6 +84,7 @@ class RiskLoop:
         start_time = time.time()
         self._history = []
         rounds_detail = []
+        _deadline_hit = False
 
         # 格式化研究经理结论
         rm_summary = self._format_rm_output(research_manager_output)
@@ -97,6 +99,13 @@ class RiskLoop:
             logger.info(f"[RiskLoop] === Round {round_num}/{max_rounds} ===")
 
             for skill_name, display_name, cn_name in RISK_DEBATERS:
+                if deadline and time.time() > deadline:
+                    logger.warning(
+                        f"[RiskLoop] Deadline exceeded before {display_name} "
+                        f"(round {round_num}), stopping risk debate early"
+                    )
+                    _deadline_hit = True
+                    break
                 logger.info(
                     f"[RiskLoop] Round {round_num}: "
                     f"{display_name} ({cn_name}) speaking..."
@@ -140,6 +149,9 @@ class RiskLoop:
                 self._history.append((display_name, content))
 
             rounds_detail.append(round_detail)
+            if _deadline_hit:
+                logger.warning(f"[RiskLoop] Stopping at round {round_num} due to deadline")
+                break
 
         duration_ms = int((time.time() - start_time) * 1000)
 

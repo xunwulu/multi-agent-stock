@@ -400,6 +400,7 @@ class MultiAgentOrchestrator:
                     research_manager_output=combined,
                     reports_summary=reports_summary,
                     max_rounds=1,
+                    deadline=deadline,
                 )
                 state.set("risk_debate", risk_result)
                 logger.info(
