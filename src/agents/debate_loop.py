@@ -302,7 +302,7 @@ class DebateLoop:
             scenario = tech_report.get("scenario_analysis", {})
             if scenario:
                 parts.append("- 情景分析:")
-                for key in ["bullish", "base", "bearish"]:
+                for key in ["bull", "base", "bear"]:
                     s = scenario.get(key, {})
                     if s:
                         parts.append(
@@ -318,6 +318,11 @@ class DebateLoop:
                 parts.append("- 失败条件:")
                 for f in failure[:5]:
                     parts.append(f"  - {f}")
+
+            # 最新收盘价 (辩论/RM 需要知道当前价位)
+            latest_close = tech_report.get("latest_close")
+            if latest_close:
+                parts.append(f"- 最新收盘价: {latest_close}")
 
             # 总结 (不截断)
             summary = tech_report.get("summary", "")
@@ -377,6 +382,20 @@ class DebateLoop:
             parts.append(f"- 内部人详情: {fund_report.get('insider_note', 'N/A')}")
             parts.append(f"- 质押风险: {fund_report.get('pledge_risk', 'N/A')}")
             parts.append(f"- 质押详情: {fund_report.get('pledge_note', 'N/A')}")
+
+            # 治理风险 + ST状态 + 机构持仓数 + 年均ROE (之前部分丢弃, 现补全)
+            gov_events = fund_report.get("governance_events")
+            if gov_events:
+                parts.append(f"- 治理事件: {gov_events}")
+            st_status = fund_report.get("st_status")
+            if st_status and st_status != "normal":
+                parts.append(f"- ST状态: {st_status} ({fund_report.get('st_reason', '')})")
+            inst_holders = fund_report.get("institutional_holders")
+            if inst_holders is not None:
+                parts.append(f"- 机构持仓数: {inst_holders}")
+            roe_annual = fund_report.get("roe_annual")
+            if roe_annual is not None:
+                parts.append(f"- 年均ROE: {roe_annual}")
 
             # 行业分析 (完整嵌套对象)
             industry = fund_report.get("industry_analysis", {})
@@ -494,6 +513,13 @@ class DebateLoop:
             if summary:
                 parts.append(f"- 总结: {summary}")
 
+            # 跟踪指标 (未来3个月关注)
+            tracking = fund_report.get("tracking_indicators", [])
+            if tracking:
+                parts.append("- 跟踪指标:")
+                for t in tracking[:5]:
+                    parts.append(f"  - {t}")
+
         # ===== 新闻面报告 =====
         if news_report:
             parts.append("")
@@ -555,6 +581,18 @@ class DebateLoop:
                     f"- 数据时效: 最新新闻{fresh.get('latest_news_date', 'N/A')}, "
                     f"新闻总数{fresh.get('news_count', 'N/A')}"
                 )
+
+            # 关键观察 + 失效条件 (之前部分丢弃, 现补全)
+            news_obs = news_report.get("key_observations", [])
+            if news_obs:
+                parts.append("- 关键观察:")
+                for o in news_obs[:5]:
+                    parts.append(f"  - {o}")
+            news_fail = news_report.get("failure_conditions", [])
+            if news_fail:
+                parts.append("- 失效条件:")
+                for fc in news_fail[:4]:
+                    parts.append(f"  - {fc}")
 
             # 总结
             news_summary = news_report.get("summary", "")

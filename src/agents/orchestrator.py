@@ -342,7 +342,7 @@ class MultiAgentOrchestrator:
 
             # 尝试 LLM-based Research Manager
             rm_result = self._run_research_manager(
-                stock_code, tech_json, fund_json, debate_result, combined
+                stock_code, tech_json, fund_json, debate_result, combined, news_json
             )
             if rm_result:
                 # 用 LLM 评判结果覆盖确定性评分
@@ -1033,6 +1033,7 @@ class MultiAgentOrchestrator:
         fund_json: dict,
         debate_result: dict,
         baseline_combined: dict,
+        news_json: dict = None,
     ) -> dict | None:
         """
         LLM-based Research Manager: 评估辩论质量并调整评分。
@@ -1056,7 +1057,7 @@ class MultiAgentOrchestrator:
         # 格式化输入数据
         debate_transcript = debate_result.get("transcript", "")
         debate_formatter = DebateLoop(self.config)
-        reports_summary = debate_formatter._format_reports(tech_json, fund_json)
+        reports_summary = debate_formatter._format_reports(tech_json, fund_json, news_json)
 
         baseline_score = baseline_combined.get("combined_score", 50)
         baseline_dir = baseline_combined.get("combined_direction", "neutral")

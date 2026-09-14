@@ -121,6 +121,7 @@ def run_single(stock_code: str, stock_name: str) -> dict:
         "take_profit_levels": trader.get("take_profit_levels"),
         "reasoning_summary": (trader.get("reasoning") or "")[:200],
         "warnings": trader.get("warnings"),
+        "trader_scoring_breakdown": trader.get("scoring_breakdown"),
         "result_file": out_file,
     }
 

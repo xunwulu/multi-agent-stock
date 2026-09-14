@@ -189,8 +189,8 @@ class RiskLoop:
 
         parts = [
             "## 研究经理综合研判",
-            f"- 综合评分: {rm.get('adjusted_score', rm.get('score', 'N/A'))}",
-            f"- 综合方向: {rm.get('adjusted_direction', 'N/A')}",
+            f"- 综合评分: {rm.get('combined_score', rm.get('adjusted_score', rm.get('score', 'N/A')))}",
+            f"- 综合方向: {rm.get('combined_direction', rm.get('adjusted_direction', 'N/A'))}",
             f"- 辩论胜方: {rm.get('debate_winner', 'N/A')}",
             f"- 辩论理由: {rm.get('debate_rationale', 'N/A')}",
             f"- 看多最强论点: {rm.get('strongest_bull_point', 'N/A')}",
