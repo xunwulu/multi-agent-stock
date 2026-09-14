@@ -712,7 +712,7 @@ function makePollingSource(url){
 /* ===== F5 恢复（mock 模式：localStorage 记进度，重放事件恢复现场） ===== */
 const LS_KEY = 'v8_mock_progress';
 function persistProgress(idx, done){
-  if (Source.mode!=='mock') return;
+  if (Source.mode!=='mock' || Source._isReplay) return;
   try{ localStorage.setItem(LS_KEY, JSON.stringify({url: currentEventsUrl(), idx, done, t: Date.now()})); }catch(e){}
 }
 function readPersisted(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ return null; } }
@@ -1437,8 +1437,17 @@ async function restart(){
 let Source=null;
 async function startSource(recoverIdx){
   const p=new URLSearchParams(location.search);
-  const sourceMode = p.get('source')==='live' ? 'live' : 'mock';
+  const replayUrl = p.get('replay');
   Store.runStatus='running';
+  // 回放模式: ?replay=<progress.jsonl地址> —— 历史存档带动画重演（倍速/跳过可用）
+  if (replayUrl){
+    clearPersisted();
+    Source = makeReplaySource(replayUrl);
+    Source._isReplay = true;
+    await Source.start(ev=>Store.apply(ev), ()=>{});
+    return;
+  }
+  const sourceMode = p.get('source')==='live' ? 'live' : 'mock';
   if (sourceMode==='mock'){
     Source = makeReplaySource(currentEventsUrl());
     if (recoverIdx>0){
@@ -1474,7 +1483,8 @@ async function startSource(recoverIdx){
   resetAll();
   try{
     const saved=readPersisted();
-    if (saved && saved.url===currentEventsUrl() && saved.idx>0 && !saved.done){
+    if (saved && !new URLSearchParams(location.search).get('replay')
+        && saved.url===currentEventsUrl() && saved.idx>0 && !saved.done){
       await startSource(saved.idx);       // 恢复现场并继续
     } else {
       clearPersisted();
