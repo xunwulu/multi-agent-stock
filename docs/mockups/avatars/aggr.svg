@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="95" fill="#FFF3E0"/>
+  <!-- Ears -->
+  <ellipse cx="30" cy="85" rx="18" ry="12" fill="#F57C00" transform="rotate(-25 30 85)"/>
+  <ellipse cx="170" cy="85" rx="18" ry="12" fill="#F57C00" transform="rotate(25 170 85)"/>
+  <ellipse cx="28" cy="85" rx="10" ry="6" fill="#FFB74D" transform="rotate(-25 28 85)"/>
+  <ellipse cx="172" cy="85" rx="10" ry="6" fill="#FFB74D" transform="rotate(25 172 85)"/>
+  <!-- Horns -->
+  <path d="M55 50 Q42 30 55 22 Q66 32 68 48 Z" fill="#FFE082"/>
+  <path d="M145 50 Q158 30 145 22 Q134 32 132 48 Z" fill="#FFE082"/>
+  <!-- Head -->
+  <circle cx="100" cy="105" r="58" fill="#FB8C00"/>
+  <!-- Head highlight -->
+  <circle cx="80" cy="88" r="20" fill="#FFA020"/>
+  <!-- Forehead tuft -->
+  <path d="M88 50 Q100 38 112 50 Q106 46 100 50 Q94 46 88 50 Z" fill="#E65100"/>
+  <!-- Hat -->
+  <path d="M55 52 Q100 22 145 52 L145 56 Q100 68 55 56 Z" fill="#E53935"/>
+  <path d="M100 26 L106 40 L100 44 L110 50 L96 52 L99 42 L92 38 Z" fill="#FF9800"/>
+  <path d="M124 40 L129 48 L123 52 L130 56 L120 56 L123 48 L118 46 Z" fill="#FFC107"/>
+  <!-- Eyes -->
+  <circle cx="80" cy="105" r="13" fill="#FFFFFF"/>
+  <circle cx="120" cy="105" r="13" fill="#FFFFFF"/>
+  <circle cx="82" cy="107" r="8" fill="#3E2723"/>
+  <circle cx="122" cy="107" r="8" fill="#3E2723"/>
+  <circle cx="85" cy="103" r="3" fill="#FFFFFF"/>
+  <circle cx="125" cy="103" r="3" fill="#FFFFFF"/>
+  <circle cx="79" cy="111" r="1.5" fill="#FFFFFF"/>
+  <circle cx="119" cy="111" r="1.5" fill="#FFFFFF"/>
+  <!-- Excited eyebrows -->
+  <path d="M68 86 Q80 80 92 86" fill="none" stroke="#E65100" stroke-width="4" stroke-linecap="round"/>
+  <path d="M108 86 Q120 80 132 86" fill="none" stroke="#E65100" stroke-width="4" stroke-linecap="round"/>
+  <!-- Muzzle -->
+  <ellipse cx="100" cy="138" rx="32" ry="22" fill="#FFE0B2"/>
+  <!-- Nostrils -->
+  <ellipse cx="88" cy="136" rx="5" ry="7" fill="#8D6E63"/>
+  <ellipse cx="112" cy="136" rx="5" ry="7" fill="#8D6E63"/>
+  <!-- Smile -->
+  <path d="M90 148 Q100 156 110 148" fill="none" stroke="#8D6E63" stroke-width="3" stroke-linecap="round"/>
+  <!-- Blush -->
+  <ellipse cx="58" cy="126" rx="8" ry="5" fill="#FF7043" opacity="0.6"/>
+  <ellipse cx="142" cy="126" rx="8" ry="5" fill="#FF7043" opacity="0.6"/>
+  <!-- Sparkles -->
+  <path d="M40 55 L43 62 L50 65 L43 68 L40 75 L37 68 L30 65 L37 62 Z" fill="#FFC107"/>
+  <path d="M160 60 L163 67 L170 70 L163 73 L160 80 L157 73 L150 70 L157 67 Z" fill="#FFC107"/>
+</svg>

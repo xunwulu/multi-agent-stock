@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <circle cx="100" cy="100" r="100" fill="#F4E9DC"/>
+  <!-- Ears -->
+  <ellipse cx="34" cy="86" rx="18" ry="12" fill="#FFFFFF" stroke="#2B2B2B" stroke-width="3" transform="rotate(-25 34 86)"/>
+  <ellipse cx="166" cy="86" rx="18" ry="12" fill="#2B2B2B" stroke="#2B2B2B" stroke-width="3" transform="rotate(25 166 86)"/>
+  <ellipse cx="34" cy="86" rx="8" ry="5" fill="#F2B8B8" transform="rotate(-25 34 86)"/>
+  <ellipse cx="166" cy="86" rx="8" ry="5" fill="#F2B8B8" transform="rotate(25 166 86)"/>
+  <!-- Horns -->
+  <path d="M52 46 Q40 26 58 24 Q70 30 68 50" fill="#F5D9A0" stroke="#2B2B2B" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M148 46 Q160 26 142 24 Q130 30 132 50" fill="#F5D9A0" stroke="#2B2B2B" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Head -->
+  <path d="M100 30 C145 30 168 62 168 100 C168 138 138 162 100 162 C62 162 32 138 32 100 C32 62 55 30 100 30 Z" fill="#FFFFFF" stroke="#2B2B2B" stroke-width="3"/>
+  <!-- Black patches (holstein) -->
+  <path d="M100 30 C125 30 143 40 154 56 C150 76 134 88 116 84 C96 80 88 58 92 36 C94 32 97 30 100 30 Z" fill="#2B2B2B"/>
+  <path d="M42 118 C50 100 74 96 84 110 C92 124 82 142 64 144 C50 140 40 132 42 118 Z" fill="#2B2B2B"/>
+  <path d="M158 116 C154 132 142 142 128 146 C114 140 110 122 120 112 C132 100 152 102 158 116 Z" fill="#2B2B2B"/>
+  <clipPath id="head"><path d="M100 30 C145 30 168 62 168 100 C168 138 138 162 100 162 C62 162 32 138 32 100 C32 62 55 30 100 30 Z"/></clipPath>
+  <g clip-path="url(#head)" stroke="#2B2B2B" stroke-width="3">
+    <path d="M100 30 C125 30 143 40 154 56 C150 76 134 88 116 84 C96 80 88 58 92 36 C94 32 97 30 100 30 Z" fill="none"/>
+    <path d="M42 118 C50 100 74 96 84 110 C92 124 82 142 64 144 C50 140 40 132 42 118 Z" fill="none"/>
+    <path d="M158 116 C154 132 142 142 128 146 C114 140 110 122 120 112 C132 100 152 102 158 116 Z" fill="none"/>
+  </g>
+  <!-- Forelock tuft -->
+  <path d="M84 32 Q96 18 108 30 Q100 38 96 44 Q90 38 84 32 Z" fill="#2B2B2B" stroke="#2B2B2B" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Eyes: strict half-lidded -->
+  <ellipse cx="72" cy="98" rx="12" ry="13" fill="#2B2B2B"/>
+  <ellipse cx="128" cy="98" rx="12" ry="13" fill="#2B2B2B"/>
+  <circle cx="76" cy="93" r="4" fill="#FFFFFF"/>
+  <circle cx="132" cy="93" r="4" fill="#FFFFFF"/>
+  <circle cx="68" cy="101" r="2" fill="#FFFFFF"/>
+  <circle cx="124" cy="101" r="2" fill="#FFFFFF"/>
+  <!-- Strict eyelids -->
+  <path d="M58 88 Q72 80 86 88" fill="none" stroke="#2B2B2B" stroke-width="4" stroke-linecap="round"/>
+  <path d="M114 88 Q128 80 142 88" fill="none" stroke="#2B2B2B" stroke-width="4" stroke-linecap="round"/>
+  <!-- Angry brows -->
+  <path d="M58 82 L86 74" fill="none" stroke="#2B2B2B" stroke-width="4" stroke-linecap="round"/>
+  <path d="M142 82 L114 74" fill="none" stroke="#2B2B2B" stroke-width="4" stroke-linecap="round"/>
+  <!-- Muzzle -->
+  <ellipse cx="100" cy="130" rx="34" ry="24" fill="#FFE3E0" stroke="#2B2B2B" stroke-width="3"/>
+  <ellipse cx="88" cy="130" rx="6" ry="8" fill="#2B2B2B"/>
+  <ellipse cx="112" cy="130" rx="6" ry="8" fill="#2B2B2B"/>
+  <!-- Stern frown-smile -->
+  <path d="M92 145 Q100 141 108 145" fill="none" stroke="#2B2B2B" stroke-width="3" stroke-linecap="round"/>
+  <!-- Clipboard under arm -->
+  <g transform="rotate(-14 40 140)">
+    <rect x="18" y="112" width="40" height="54" rx="5" fill="#C8965A" stroke="#2B2B2B" stroke-width="3"/>
+    <rect x="24" y="120" width="28" height="38" rx="2" fill="#FFFFFF" stroke="#2B2B2B" stroke-width="2"/>
+    <rect x="30" y="106" width="16" height="10" rx="3" fill="#8A8A8A" stroke="#2B2B2B" stroke-width="2"/>
+    <line x1="28" y1="130" x2="48" y2="130" stroke="#2B2B2B" stroke-width="2"/>
+    <line x1="28" y1="138" x2="48" y2="138" stroke="#2B2B2B" stroke-width="2"/>
+    <line x1="28" y1="146" x2="42" y2="146" stroke="#2B2B2B" stroke-width="2"/>
+  </g>
+  <!-- Body hint + tie -->
+  <path d="M52 162 Q100 150 148 162 L152 186 Q100 198 48 186 Z" fill="#FFFFFF" stroke="#2B2B2B" stroke-width="3"/>
+  <path d="M60 164 Q70 158 78 164 L80 180 Q68 186 58 180 Z" fill="#2B2B2B"/>
+  <path d="M140 164 Q130 158 122 164 L120 180 Q132 186 142 180 Z" fill="#2B2B2B"/>
+  <!-- Tie -->
+  <path d="M92 158 L108 158 L104 168 L96 168 Z" fill="#1F3A5F" stroke="#2B2B2B" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M96 168 L104 168 L110 190 L100 200 L90 190 Z" fill="#1F3A5F" stroke="#2B2B2B" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Arm holding clipboard -->
+  <path d="M52 168 Q34 158 30 142" fill="none" stroke="#2B2B2B" stroke-width="14" stroke-linecap="round"/>
+  <path d="M52 168 Q34 158 30 142" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+  <!-- Cheek blush -->
+  <ellipse cx="56" cy="120" rx="7" ry="4" fill="#F2A9A2" opacity="0.8"/>
+  <ellipse cx="144" cy="120" rx="7" ry="4" fill="#F2A9A2" opacity="0.8"/>
+</svg>

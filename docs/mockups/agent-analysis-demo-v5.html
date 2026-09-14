@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI分析 Demo v5 — 双层架构</title>
+<style>
+:root{--pri:#4ECDC4;--bg:#0d1117;--card:#161b22;--card2:#1a2540;--tx:#e6edf3;--tx2:#8b949e;--bd:#2a3550;--ok:#52c41a;--warn:#faad14;--danger:#ff4444;--bull:#FF4444;--bear:#00C853}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"PingFang SC","Segoe UI",sans-serif;background:var(--bg);color:var(--tx);line-height:1.6;padding:20px;max-width:1100px;margin:0 auto}
+
+/* 决策卡 */
+.dc{background:linear-gradient(135deg,#1a2540,#16213E);border:1px solid var(--bd);border-radius:14px;padding:24px 28px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.dc .name{font-size:20px;font-weight:700}.dc .code{font-size:13px;color:var(--tx2);margin-left:8px}
+.dc .badge{display:inline-block;background:var(--warn);color:#1a1a2e;font-size:24px;font-weight:800;padding:4px 18px;border-radius:8px;margin-top:8px;letter-spacing:2px}
+.dc .score{font-size:42px;font-weight:800;color:var(--warn)}.dc .sl{font-size:11px;color:var(--tx2)}
+.pr{display:flex;gap:20px;margin-top:10px}.pi{text-align:center}.pi .l{font-size:10px;color:var(--tx2)}.pi .v{font-size:16px;font-weight:700}
+
+/* 统计 */
+.sb{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.stat{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px}
+.stat .n{font-size:18px;font-weight:700;color:var(--pri)}.stat .l{font-size:10px;color:var(--tx2)}
+
+/* 阶段 */
+.ph{display:flex;align-items:center;gap:10px;margin:28px 0 14px}
+.pn{width:28px;height:28px;border-radius:50%;background:var(--pri);color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+.pt{font-size:15px;font-weight:700}.ps{font-size:11px;color:var(--tx2)}
+
+/* Agent 卡片 */
+.ar{display:flex;gap:12px;flex-wrap:wrap}
+.ac{flex:1;min-width:280px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;transition:border-color .2s}
+.ac:hover{border-color:var(--pri)}
+.ah{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.ah img{width:52px;height:52px;border-radius:50%;border:2px solid var(--bd);flex-shrink:0}
+.an{font-size:14px;font-weight:700}.ar2{font-size:10px;color:var(--tx2)}
+.st{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;margin-left:auto}
+.sdone{background:#1a3a2a;color:var(--ok)}
+.sc{font-size:22px;font-weight:800;margin-bottom:4px}
+.sc small{font-size:11px;color:var(--tx2);font-weight:400;margin-left:4px}
+.dlv{background:var(--card2);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--tx2);margin-top:6px}
+.dlv b{color:var(--tx)}
+.view-btn{display:block;width:100%;margin-top:10px;padding:8px;background:transparent;border:1px solid var(--pri);border-radius:8px;color:var(--pri);font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:background .2s}
+.view-btn:hover{background:rgba(78,205,196,.1)}
+
+/* 连接线 */
+.cn{display:flex;justify-content:center;padding:6px 0}
+.cn .ln{width:1px;height:20px;background:var(--bd);position:relative}
+.cn .ln::after{content:'';position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top:6px solid var(--bd)}
+
+/* 辩论气泡 */
+.chat{max-width:650px;margin:0 auto}
+.bubble{max-width:78%;padding:10px 14px;border-radius:14px;margin:6px 0;font-size:12px;line-height:1.5;position:relative}
+.bull-b{background:#2d1a1a;border:1px solid #5a2a2a;border-bottom-left-radius:4px;margin-right:auto}
+.bear-b{background:#1a2d1a;border:1px solid #2a5a2a;border-bottom-right-radius:4px;margin-left:auto}
+.bubble .who{font-size:10px;font-weight:700;margin-bottom:3px}
+.bull-b .who{color:#ff6b6b}.bear-b .who{color:#4ade80}
+.round-tag{text-align:center;font-size:10px;color:var(--tx2);margin:10px 0;background:var(--card);border-radius:10px;padding:2px 12px;display:inline-block}
+.rtw{text-align:center}
+.bub-row{display:flex;gap:8px;align-items:flex-start}
+.bub-row.right{justify-content:flex-end}
+.bub-row img{width:32px;height:32px;border-radius:50%;flex-shrink:0}
+.ref{display:inline-block;font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.08);color:var(--tx2);margin:0 2px}
+
+/* 风险三方 */
+.risk3{display:flex;gap:10px;margin-bottom:12px}
+.rk{flex:1;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;text-align:center}
+.rk img{width:40px;height:40px;border-radius:50%;margin-bottom:4px}
+.rk .rn{font-size:11px;font-weight:700;margin-bottom:4px;color:var(--tx)}
+.rk .rv{font-size:10px;color:var(--tx2);text-align:left;padding:4px 6px;background:var(--card2);border-radius:6px}
+
+/* 交易员 */
+.tc{background:linear-gradient(135deg,#1a2d1a,#162435);border:2px solid var(--pri);border-radius:12px;padding:20px;margin-top:6px}
+.th{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.th img{width:64px;height:64px;border-radius:50%;border:2px solid var(--pri)}
+.tm{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.mb{background:var(--card);border-radius:8px;padding:8px 12px;text-align:center}
+.mb .l{font-size:10px;color:var(--tx2)}.mb .v{font-size:16px;font-weight:700;color:var(--pri)}
+
+/* ===== 报告抽屉 ===== */
+.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .3s;z-index:999}
+.drawer{position:fixed;top:0;right:0;width:55%;max-width:700px;height:100vh;background:var(--bg);border-left:1px solid var(--bd);transform:translateX(100%);transition:transform .3s ease;z-index:1000;display:flex;flex-direction:column}
+.drawer.open{transform:translateX(0)}
+.drawer-overlay.open{opacity:1;pointer-events:auto}
+.drawer-header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--bd);flex-shrink:0}
+.drawer-header img{width:36px;height:36px;border-radius:50%}
+.drawer-header .dt{font-size:15px;font-weight:700}
+.drawer-close{margin-left:auto;background:none;border:none;color:var(--tx2);font-size:24px;cursor:pointer;padding:4px 12px;border-radius:6px}
+.drawer-close:hover{background:var(--card);color:var(--tx)}
+.drawer-tabs{display:flex;gap:0;border-bottom:1px solid var(--bd);flex-shrink:0;overflow-x:auto}
+.dtab{padding:10px 16px;font-size:12px;font-weight:600;color:var(--tx2);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s}
+.dtab:hover{color:var(--tx)}
+.dtab.active{color:var(--pri);border-bottom-color:var(--pri)}
+.drawer-body{flex:1;overflow-y:auto;padding:20px}
+.drawer-body::-webkit-scrollbar{width:6px}
+.drawer-body::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+
+/* 报告内容样式 */
+.rpt{font-size:13px;line-height:1.8;color:var(--tx)}
+.rpt h2{font-size:16px;color:var(--pri);margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--bd)}
+.rpt h3{font-size:14px;color:var(--pri);margin:12px 0 6px}
+.rpt h4{font-size:13px;color:var(--tx);margin:10px 0 4px}
+.rpt p{margin:6px 0}
+.rpt ul,.rpt ol{padding-left:20px;margin:6px 0}
+.rpt li{margin:3px 0;color:var(--tx)}
+.rpt strong{color:var(--pri)}
+.rpt table{width:100%;border-collapse:collapse;margin:8px 0;font-size:11px}
+.rpt th{background:var(--card2);color:var(--tx);padding:6px 8px;text-align:left;border:1px solid var(--bd)}
+.rpt td{padding:6px 8px;border:1px solid var(--bd);color:var(--tx2)}
+.rpt hr{border:none;border-top:1px solid var(--bd);margin:12px 0}
+.rpt code{background:var(--card2);padding:1px 4px;border-radius:3px;font-size:11px}
+
+/* 字段网格 */
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;margin:10px 0}
+.fcard{background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:8px}
+.fcard .fk{font-size:9px;font-weight:700;color:var(--tx2);text-transform:uppercase;margin-bottom:2px}
+.fcard .fv{font-size:12px;font-weight:600;color:var(--tx)}
+.fcard .fv.good{color:var(--ok)}.fcard .fv.bad{color:var(--danger)}.fcard .fv.warn{color:var(--warn)}
+.fcard .fs{font-size:10px;color:var(--tx2)}
+.fgroup-title{grid-column:1/-1;font-size:12px;font-weight:700;color:var(--pri);margin-top:8px;padding-bottom:4px;border-bottom:1px solid var(--bd)}
+
+/* 置信度条 */
+.conf-row{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:11px}
+.conf-row .cl{width:70px;flex-shrink:0;color:var(--tx2);text-align:right}
+.conf-bar{flex:1;height:5px;border-radius:3px;background:var(--card2);overflow:hidden}
+.conf-fill{height:100%;border-radius:3px}
+.conf-row .cv{color:var(--tx2);font-size:10px}
+
+/* 止盈 */
+.tp-grid{display:flex;gap:6px;margin:8px 0}
+.tp-item{flex:1;background:var(--card);border-radius:6px;padding:6px;text-align:center;border:1px solid var(--bd)}
+.tp-item .tp{l:font-size:10px;color:var(--tx2)}
+.tp-item .pv{font-size:14px;font-weight:700}
+.tp-item .pp{font-size:10px;color:var(--tx2)}
+</style>
+</head>
+<body>
+
+<!-- 决策卡 -->
+<div class="dc">
+  <div>
+    <span class="name">工商银行</span><span class="code">601398.SH</span><br>
+    <span class="badge">WATCH</span><span style="font-size:12px;color:var(--tx2);margin-left:6px">观望</span>
+  </div>
+  <div style="text-align:right">
+    <div class="score" id="d-score">-</div><div class="sl">综合评分</div>
+    <div class="pr">
+      <div class="pi"><div class="l">目标价</div><div class="v" id="d-target">-</div></div>
+      <div class="pi"><div class="l">止损价</div><div class="v" id="d-stop">-</div></div>
+      <div class="pi"><div class="l">置信度</div><div class="v" id="d-conf">-</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="sb">
+  <div class="stat"><div class="n">11</div><div class="l">智能体</div></div>
+  <div class="stat"><div class="n">2轮</div><div class="l">辩论</div></div>
+  <div class="stat"><div class="n" id="s-dur">-</div><div class="l">耗时</div></div>
+  <div class="stat"><div class="n" id="s-tokens">-</div><div class="l">tokens</div></div>
+</div>
+
+<!-- Phase 1 -->
+<div class="ph"><div class="pn">1</div><div><div class="pt">分析师团队</div><div class="ps">三面并行</div></div></div>
+<div class="ar">
+  <div class="ac">
+    <div class="ah"><img src="avatars/tech.svg"><div><div class="an">技术分析师</div><div class="ar2" id="t-score">-</div></div><span class="st sdone">✓</span></div>
+    <div class="dlv" id="t-summary"></div>
+    <button class="view-btn" onclick="openDrawer('tech')">查看完整报告 →</button>
+  </div>
+  <div class="ac">
+    <div class="ah"><img src="avatars/fund.svg"><div><div class="an">基本面分析师</div><div class="ar2" id="f-score">-</div></div><span class="st sdone">✓</span></div>
+    <div class="dlv" id="f-summary"></div>
+    <button class="view-btn" onclick="openDrawer('fund')">查看完整报告 →</button>
+  </div>
+  <div class="ac" style="min-width:240px">
+    <div class="ah"><img src="avatars/news.svg"><div><div class="an">新闻分析师</div><div class="ar2" id="n-score">-</div></div><span class="st sdone">✓</span></div>
+    <div class="dlv" id="n-summary"></div>
+    <button class="view-btn" onclick="openDrawer('news')">查看完整报告 →</button>
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 2 -->
+<div class="ph"><div class="pn">2</div><div><div class="pt">多空辩论</div><div class="ps">2轮</div></div></div>
+<div class="chat" id="debate-view"></div>
+<div style="text-align:center;margin-top:8px"><button class="view-btn" style="width:auto;padding:6px 20px" onclick="openDrawer('debate')">查看完整辩论 →</button></div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 3 -->
+<div class="ph"><div class="pn">3</div><div><div class="pt">研究经理评判</div></div></div>
+<div class="ar"><div class="ac" style="max-width:550px" id="rm-card"></div></div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 4-5 -->
+<div class="ph"><div class="pn">4-5</div><div><div class="pt">风险辩论 + 风险经理</div></div></div>
+<div class="risk3" id="risk3"></div>
+<div class="ar"><div class="ac" style="max-width:550px" id="riskmgr-card"></div></div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 6 -->
+<div class="ph"><div class="pn">6</div><div><div class="pt">交易员最终决策</div></div></div>
+<div class="tc" id="trader-card"></div>
+
+<!-- ===== 报告抽屉 ===== -->
+<div class="drawer-overlay" id="overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <img id="drawer-avatar" src="avatars/tech.svg">
+    <div><div class="dt" id="drawer-title">完整报告</div><div style="font-size:10px;color:var(--tx2)" id="drawer-sub"></div></div>
+    <button class="drawer-close" onclick="closeDrawer()">×</button>
+  </div>
+  <div class="drawer-tabs" id="drawer-tabs"></div>
+  <div class="drawer-body rpt" id="drawer-body"></div>
+</div>
+
+<script src="result_data.json" defer></script>
+<script>
+// 数据会在 result_data.json 加载后由 init() 使用
+let DATA = null;
+
+// Markdown 渲染（简化版：标题/列表/粗体/表格/分隔线）
+function md(src) {
+  if (!src) return '<p style="color:var(--tx2)">（无内容）</p>';
+  let html = src
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/^#{4} (.+)$/gm, '<h4>$1</h4>')
+    .replace(/^#{3} (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^#{2} (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^#{1} (.+)$/gm, '<h2>$1</h2>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^---$/gm, '<hr>')
+    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>)(?!\s*<li>)/g, '<ul>$1</ul>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+  // 表格
+  html = html.replace(/\|(.+)\|/g, (m) => {
+    const cells = m.split('|').filter(c => c.trim());
+    if (cells.every(c => /^[-: ]+$/.test(c.trim()))) return '';
+    const isHeader = false;
+    return '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
+  });
+  html = html.replace(/(<tr>[\s\S]*?<\/tr>)(?![\s\S]*?<tr>)/g, '<table><thead><tr><th>维度</th><th>数据</th></tr></thead><tbody>$1</tbody></table>');
+  return '<p>' + html + '</p>';
+}
+
+// 标签渲染 [基本面] → 徽章
+function refs(text) {
+  return text.replace(/\[(基本面|技术面|新闻面|宏观面|微观面)\]/g, '<span class="ref">$1</span>');
+}
+
+// 字段卡片网格
+function fieldGrid(json, groups) {
+  let html = '<div class="fgrid">';
+  for (const g of groups) {
+    if (g.title) html += `<div class="fgroup-title">${g.title}</div>`;
+    for (const [key, label, colorFn] of g.fields) {
+      const v = json[key];
+      if (v === null || v === undefined || v === '') continue;
+      let color = '';
+      if (colorFn === 'good') color = 'good';
+      else if (colorFn === 'bad') color = 'bad';
+      else if (colorFn === 'warn') color = 'warn';
+      let display = v;
+      if (typeof v === 'number') display = v.toLocaleString();
+      if (Array.isArray(v)) display = v.join('; ');
+      if (typeof v === 'object') display = JSON.stringify(v).slice(0,80) + '...';
+      html += `<div class="fcard"><div class="fk">${label||key}</div><div class="fv ${color}">${display}</div></div>`;
+    }
+  }
+  return html + '</div>';
+}
+
+// ===== 抽屉 =====
+const TAB_CONFIG = {
+  overview: { icon: 'avatars/rm.svg', title: '总览', render: renderOverview },
+  tech: { icon: 'avatars/tech.svg', title: '技术面', render: renderTech },
+  fund: { icon: 'avatars/fund.svg', title: '基本面', render: renderFund },
+  news: { icon: 'avatars/news.svg', title: '新闻面', render: renderNews },
+  debate: { icon: 'avatars/bull.svg', title: '多空辩论', render: renderDebate },
+  risk: { icon: 'avatars/riskmgr.svg', title: '风险辩论', render: renderRisk },
+  trader: { icon: 'avatars/trader.svg', title: '交易决策', render: renderTrader },
+};
+
+function openDrawer(tab) {
+  DATA = window.RESULT_DATA;
+  if (!DATA) { document.getElementById('drawer-body').innerHTML = '<p>加载中...</p>'; return; }
+
+  const tabs = tab === 'overview' ? ['overview','tech','fund','news','debate','risk','trader']
+    : tab === 'debate' ? ['debate','risk','trader','overview','tech','fund','news']
+    : [tab,'overview','tech','fund','news','debate','risk','trader'].filter((v,i,a)=>a.indexOf(v)===i);
+
+  const tabsEl = document.getElementById('drawer-tabs');
+  tabsEl.innerHTML = tabs.map((t,i) =>
+    `<div class="dtab ${i===0?'active':''}" data-tab="${t}" onclick="switchTab('${t}')">${TAB_CONFIG[t].title}</div>`
+  ).join('');
+
+  const first = tabs[0];
+  document.getElementById('drawer-avatar').src = TAB_CONFIG[first].icon;
+  document.getElementById('drawer-title').textContent = TAB_CONFIG[first].title + ' · 工商银行';
+  document.getElementById('drawer-sub').textContent = DATA.meta.stock_code;
+  document.getElementById('drawer-body').innerHTML = TAB_CONFIG[first].render();
+
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('drawer-body').scrollTop = 0;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.dtab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+  document.getElementById('drawer-avatar').src = TAB_CONFIG[tab].icon;
+  document.getElementById('drawer-title').textContent = TAB_CONFIG[tab].title + ' · 工商银行';
+  document.getElementById('drawer-body').innerHTML = TAB_CONFIG[tab].render();
+  document.getElementById('drawer-body').scrollTop = 0;
+}
+
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+
+// ===== 各标签渲染 =====
+function renderOverview() {
+  const c = DATA.combined, t = DATA.trader, m = DATA.meta;
+  let html = `<h2>最终决策</h2>
+  <div class="fgrid">
+    <div class="fcard"><div class="fk">综合分</div><div class="fv">${c.combined_score}</div></div>
+    <div class="fcard"><div class="fk">方向</div><div class="fv">${c.combined_direction}</div></div>
+    <div class="fcard"><div class="fk">辩论胜方</div><div class="fv">${c.debate_winner}</div></div>
+    <div class="fcard"><div class="fk">风险等级</div><div class="fv bad">${c.risk_level}</div></div>
+    <div class="fcard"><div class="fk">股票类型</div><div class="fv">${c.stock_type}</div></div>
+    <div class="fcard"><div class="fk">分析链路</div><div class="fs">${c.synthesis_method}</div></div>
+  </div>
+  <h2>各面评分</h2>
+  <div class="fgrid">
+    <div class="fcard"><div class="fk">技术面</div><div class="fv">${c.tech_score}</div></div>
+    <div class="fcard"><div class="fk">基本面</div><div class="fv">${c.fund_score}</div></div>
+    <div class="fcard"><div class="fk">新闻面</div><div class="fv">${c.news_score}</div></div>
+  </div>
+  <h2>交易决策摘要</h2>
+  <div class="fgrid">
+    <div class="fcard"><div class="fk">动作</div><div class="fv warn">${t.action}</div></div>
+    <div class="fcard"><div class="fk">目标价</div><div class="fv">${t.target_price}</div></div>
+    <div class="fcard"><div class="fk">止损价</div><div class="fv">${t.stop_loss}</div></div>
+    <div class="fcard"><div class="fk">置信度</div><div class="fv">${t.confidence_total} (${t.confidence_label})</div></div>
+    <div class="fcard"><div class="fk">仓位</div><div class="fv">${t.position_advice} (${t.position_range})</div></div>
+  </div>
+  <h2>决策推理</h2><p>${md(t.reasoning)}</p>
+  <h2>综合摘要</h2><p>${md(c.summary)}</p>`;
+  return html;
+}
+
+function renderTech() {
+  const t = DATA.tech, j = t.json;
+  let html = `<h2>技术分析师报告</h2><p><b>评分: ${j.score} | 方向: ${j.direction}</b></p>
+  <h3>分析推理（content）</h3>${md(t.content)}
+  <h3>结构化数据（${Object.keys(j).length} 字段）</h3>`;
+
+  html += fieldGrid(j, [
+    {title:'— 评分 —', fields: Object.entries(j.scoring_breakdown||{}).map(([k,v])=>[k,k])},
+    {title:'— 趋势 —', fields: [
+      ['short_term_trend','短期'],['mid_term_trend','中期'],['long_term_trend','长期'],['trend','综合趋势'],
+    ]},
+    {title:'— 关键价位 —', fields: [
+      ['strong_support','强支撑','good'],['weak_support','弱支撑'],
+      ['weak_resistance','弱阻力'],['strong_resistance','强阻力','bad'],
+      ['target_price','目标价'],['stop_loss_price','止损价'],['stop_loss_sell','做空止损'],
+      ['risk_reward_ratio','盈亏比','warn'],['latest_close','最新收盘'],
+    ]},
+    {title:'— 场景分析 —', fields: []},
+  ]);
+
+  // 场景分析特殊渲染
+  if (j.scenario_analysis) {
+    const sc = j.scenario_analysis;
+    html += '<div class="fgrid">';
+    for (const [name, s] of Object.entries(sc)) {
+      html += `<div class="fcard"><div class="fk">${name}场景</div>
+      <div class="fv">${s.target_price}</div>
+      <div class="fs">概率: ${s.probability}<br>条件: ${s.trigger||s.key_driver||''}</div></div>`;
+    }
+    html += '</div>';
+  }
+
+  html += fieldGrid(j, [
+    {title:'— 技术信号 —', fields: [
+      ['macd_signal','MACD'],['macd_divergence','MACD背离'],['kdj_signal','KDJ'],
+      ['kdj_divergence','KDJ背离'],['rsi_signal','RSI'],['rsi_divergence','RSI背离'],
+      ['ma_pattern','均线形态'],['volume_signal','量能'],['turnover_signal','换手'],
+      ['relative_strength','相对强度'],['weekly_signal','周线信号'],['resonance','共振'],
+    ]},
+    {title:'— 资金 —', fields: [
+      ['money_flow_signal','资金信号'],['money_flow_summary','资金详情'],
+    ]},
+    {title:'— 风险 —', fields: []},
+  ]);
+
+  if (j.failure_conditions) {
+    html += '<h3>失败条件</h3><ul>';
+    j.failure_conditions.forEach(f => {
+      if (typeof f === 'object') html += `<li><b>${f.condition}</b> → ${f.action}</li>`;
+      else html += `<li>${f}</li>`;
+    });
+    html += '</ul>';
+  }
+  if (j.kline_patterns) {
+    html += '<h3>K线形态</h3><ul>' + j.kline_patterns.map(p => `<li>${typeof p==='string'?p:JSON.stringify(p)}</li>`).join('') + '</ul>';
+  }
+  return html;
+}
+
+function renderFund() {
+  const f = DATA.fund, j = f.json;
+  let html = `<h2>基本面分析师报告</h2><p><b>评分: ${j.score} | 方向: ${j.direction}</b></p>
+  <h3>分析推理（content）</h3>${md(f.content)}
+  <h3>结构化数据（${Object.keys(j).length} 字段）</h3>`;
+
+  html += fieldGrid(j, [
+    {title:'— 估值 —', fields: [
+      ['pe_ttm','PE(TTM)'],['pe_percentile','PE分位'],['pb','PB'],
+      ['valuation_grade','估值判定'],['valuation_summary','估值概述'],
+    ]},
+    {title:'— DCF —', fields: []},
+  ]);
+  if (j.dcf_cross_check) {
+    const d = j.dcf_cross_check;
+    html += '<div class="fgrid">';
+    for (const [k,v] of Object.entries(d)) {
+      html += `<div class="fcard"><div class="fk">${k}</div><div class="fv">${typeof v==='object'?JSON.stringify(v).slice(0,60):v}</div></div>`;
+    }
+    html += '</div>';
+  }
+
+  html += fieldGrid(j, [
+    {title:'— 财务健康 —', fields: [
+      ['roe_latest','ROE最新'],['roe_annual','ROE年均'],['net_margin','净利率'],
+      ['revenue_growth','营收增速'],['net_profit_growth','净利增速'],
+      ['ocf_to_np_ratio','OCF/NP','good'],['free_cash_flow','FCF'],
+      ['fcf_margin','FCF利润率'],['debt_ratio','负债率'],['interest_debt','有息负债'],
+    ]},
+    {title:'— 股东 —', fields: [
+      ['insider_signal','内部人信号'],['insider_note','内部人详情'],
+      ['institutional_ratio','机构比例'],['institutional_holders','机构数'],
+      ['holder_trend','股东趋势'],['pledge_risk','质押'],
+    ]},
+  ]);
+
+  // 场景
+  if (j.scenario_analysis) {
+    html += '<h3>场景分析</h3><div class="fgrid">';
+    for (const [name, s] of Object.entries(j.scenario_analysis)) {
+      html += `<div class="fcard"><div class="fk">${name}</div><div class="fv">${s.target_price}</div>
+      <div class="fs">条件: ${s.trigger||s.key_driver||''}</div></div>`;
+    }
+    html += '</div>';
+  }
+
+  // 杜邦
+  if (j.dupont_analysis) {
+    html += '<h3>杜邦分析</h3>' + fieldGrid(j.dupont_analysis, [{fields: Object.keys(j.dupont_analysis).map(k=>[k,k])}]);
+  }
+
+  // 优势/风险
+  if (j.key_strengths) {
+    html += '<h3>核心优势</h3><ul>' + j.key_strengths.map(s=>`<li>✓ ${s}</li>`).join('') + '</ul>';
+  }
+  if (j.key_risks) {
+    html += '<h3>核心风险</h3><ul>' + j.key_risks.map(s=>`<li>✗ ${s}</li>`).join('') + '</ul>';
+  }
+
+  // 跟踪指标
+  if (j.tracking_indicators) {
+    html += '<h3>跟踪指标</h3><ul>';
+    j.tracking_indicators.forEach(t => html += `<li>${typeof t==='string'?t:JSON.stringify(t)}</li>`);
+    html += '</ul>';
+  }
+
+  return html;
+}
+
+function renderNews() {
+  const n = DATA.news, j = n.json;
+  return `<h2>新闻分析师报告</h2><p><b>评分: ${j.score} | 方向: ${j.direction} | 情绪: ${j.sentiment}</b></p>
+  <h3>完整报告（content，含表格）</h3>${md(n.content)}
+  <h3>结构化数据</h3>${fieldGrid(j, [{fields: Object.keys(j).filter(k=>!['key_events','risk_events'].includes(k)).map(k=>[k,k])}])}
+  ${j.key_events ? '<h3>关键事件</h3><ul>' + j.key_events.map(e=>`<li><b>${e.event||e.title||e}</b> ${e.direction?'['+e.direction+']':''} ${e.impact?'影响:'+e.impact:''}</li>`).join('') + '</ul>' : ''}
+  ${j.risk_events ? '<h3>风险事件</h3><ul>' + j.risk_events.map(e=>`<li>⚠ ${typeof e==='object'?JSON.stringify(e):e}</li>`).join('') + '</ul>' : ''}
+  `;
+}
+
+function renderDebate() {
+  const d = DATA.debate;
+  let html = '<h2>多空辩论</h2>';
+  html += `<div class="fgrid">
+    <div class="fcard"><div class="fk">轮次</div><div class="fv">${d.rounds_completed}</div></div>
+    <div class="fcard"><div class="fk">胜方</div><div class="fv">${DATA.combined.debate_winner}</div></div>
+    <div class="fcard"><div class="fk">Delta</div><div class="fv">${DATA.combined.debate_delta}</div></div>
+  </div>`;
+
+  if (d.rounds) {
+    for (const r of d.rounds) {
+      html += `<div class="rtw"><span class="round-tag">第 ${r.round} 轮</span></div>`;
+      if (r.bull) {
+        html += `<div class="bub-row"><img src="avatars/bull.svg"><div class="bubble bull-b"><div class="who">🐂 看多辩手</div>${refs(r.bull.content)}</div></div>`;
+      }
+      if (r.bear) {
+        html += `<div class="bub-row right"><div class="bubble bear-b"><div class="who">🐻 看空辩手</div>${refs(r.bear.content)}</div><img src="avatars/bear.svg"></div>`;
+      }
+    }
+  }
+  if (d.summary) {
+    html += '<h3>辩论统计</h3>' + fieldGrid(d.summary, [{fields: Object.keys(d.summary).map(k=>[k,k])}]);
+  }
+  return html;
+}
+
+function renderRisk() {
+  const rk = DATA.risk, c = DATA.combined;
+  let html = `<h2>风险辩论 + 风险经理</h2>
+  <div class="fgrid">
+    <div class="fcard"><div class="fk">风险等级</div><div class="fv bad">${c.risk_level}</div></div>
+    <div class="fcard"><div class="fk">风险评分</div><div class="fv">${c.risk_score}</div></div>
+    <div class="fcard"><div class="fk">仓位建议</div><div class="fv">${c.position_suggestion||'standard'}</div></div>
+    <div class="fcard"><div class="fk">风险胜方</div><div class="fv">${c.risk_winner||'-'}</div></div>
+  </div>`;
+
+  if (rk.rounds) {
+    for (const r of rk.rounds) {
+      html += `<div class="rtw"><span class="round-tag">第 ${r.round} 轮</span></div>`;
+      if (r.aggressive) html += `<div class="bub-row"><img src="avatars/aggr.svg"><div class="bubble bull-b"><div class="who">🔥 激进方</div>${refs(r.aggressive.content)}</div></div>`;
+      if (r.neutral) html += `<div class="bub-row"><img src="avatars/neu.svg"><div class="bubble" style="background:#1a1a2d;border:1px solid var(--bd)"><div class="who" style="color:var(--tx2)">⚖️ 中性方</div>${refs(r.neutral.content)}</div></div>`;
+      if (r.conservative) html += `<div class="bub-row right"><div class="bubble bear-b"><div class="who">🛡️ 保守方</div>${refs(r.conservative.content)}</div><img src="avatars/cons.svg"></div>`;
+    }
+  }
+  if (c.key_risks) {
+    html += '<h3>核心风险</h3><ul>' + c.key_risks.map(k=>`<li>⚠ ${k}</li>`).join('') + '</ul>';
+  }
+  return html;
+}
+
+function renderTrader() {
+  const t = DATA.trader;
+  let html = `<h2>交易员决策</h2>
+  <div class="fgrid">
+    <div class="fcard"><div class="fk">动作</div><div class="fv warn">${t.action} (${t.action_strength})</div></div>
+    <div class="fcard"><div class="fk">目标价</div><div class="fv">${t.target_price}</div></div>
+    <div class="fcard"><div class="fk">止损</div><div class="fv">${t.stop_loss}</div></div>
+    <div class="fcard"><div class="fk">置信度</div><div class="fv">${t.confidence_total} (${t.confidence_label})</div></div>
+    <div class="fcard"><div class="fk">仓位</div><div class="fv">${t.position_advice}</div></div>
+    <div class="fcard"><div class="fk">时间</div><div class="fv">${t.time_horizon}</div></div>
+  </div>`;
+
+  html += `<h3>目标价理由</h3><p>${md(t.target_price_rationale)}</p>
+  <h3>止损理由</h3><p>${md(t.stop_loss_rationale)}</p>
+  <h3>决策推理</h3><p>${md(t.reasoning)}</p>`;
+
+  if (t.take_profit_levels) {
+    html += '<h3>分批止盈</h3><div class="tp-grid">';
+    for (const tp of t.take_profit_levels) {
+      html += `<div class="tp-item"><div class="l" style="font-size:10px;color:var(--tx2)">目标</div>
+      <div class="pv" style="font-size:14px;font-weight:700;color:var(--ok)">${tp.price}</div>
+      <div style="font-size:10px;color:var(--tx2)">减 ${tp.portion}%</div>
+      <div style="font-size:9px;color:var(--tx2)">${tp.reason||''}</div></div>`;
+    }
+    html += '</div>';
+  }
+
+  if (t.confidence_components) {
+    html += '<h3>置信度 5 维拆解</h3>';
+    const cc = t.confidence_components;
+    const colors = ['#4C6EF5','#2F9E44','#F59F00','#E8590C','#9C36B5'];
+    const labels = {signal_consistency:'信号一致',data_sufficiency:'数据充分',debate_certainty:'辩论确定',risk_controllability:'风控可控',valuation_reasonableness:'估值合理'};
+    for (const [k,v] of Object.entries(cc)) {
+      const pct = (v/20*100).toFixed(0);
+      html += `<div class="conf-row"><span class="cl">${labels[k]||k}</span>
+      <div class="conf-bar"><div class="conf-fill" style="width:${pct}%;background:${colors[Object.keys(cc).indexOf(k)%5]}"></div></div>
+      <span class="cv">${v}/20</span></div>`;
+    }
+  }
+
+  if (t.entry_conditions) {
+    html += '<h3>入场条件</h3><ul>' + t.entry_conditions.map(e=>`<li>▸ ${e}</li>`).join('') + '</ul>';
+  }
+  if (t.key_catalysts) {
+    html += '<h3>关键催化剂</h3><ul>' + t.key_catalysts.map(c=>`<li>⚡ ${c}</li>`).join('') + '</ul>';
+  }
+  if (t.warnings) {
+    html += '<h3>风险提示</h3><ul>' + t.warnings.map(w=>`<li>⚠ ${w}</li>`).join('') + '</ul>';
+  }
+  return html;
+}
+
+// ===== 主页面初始化 =====
+document.addEventListener('DOMContentLoaded', () => {
+  DATA = window.RESULT_DATA;
+  if (!DATA) return;
+
+  const c = DATA.combined, t = DATA.trader, m = DATA.meta;
+  document.getElementById('d-score').textContent = c.combined_score;
+  document.getElementById('d-target').textContent = t.target_price || '-';
+  document.getElementById('d-stop').textContent = t.stop_loss || '-';
+  document.getElementById('d-conf').textContent = t.confidence_total || '-';
+  document.getElementById('s-dur').textContent = m.duration_s + 's';
+
+  // 分析师卡片摘要
+  const tech = DATA.tech.json, fund = DATA.fund.json, news = DATA.news.json;
+  document.getElementById('t-score').textContent = `${tech.score}分 · ${tech.direction}`;
+  document.getElementById('f-score').textContent = `${fund.score}分 · ${fund.direction}`;
+  document.getElementById('n-score').textContent = `${news.score}分 · ${news.direction}`;
+
+  document.getElementById('t-summary').innerHTML = `
+    <b>支撑/阻力:</b> ${tech.strong_support}/${tech.strong_resistance} · <b>盈亏比:</b> ${tech.risk_reward_ratio}<br>
+    <b>MACD:</b> ${tech.macd_signal}${tech.macd_divergence!=='none'?'('+tech.macd_divergence+')':''} · <b>周线:</b> ${(tech.weekly_signal||'').slice(0,20)}...`;
+
+  document.getElementById('f-summary').innerHTML = `
+    <b>PE:</b> ${fund.pe_ttm}(${fund.pe_percentile||'-'}) · <b>OCF:</b> ${fund.ocf_to_np_ratio}<br>
+    <b>股息率:</b> ${fund.dividend?fund.dividend.yield||'-':'-'} · <b>insider:</b> ${fund.insider_signal}`;
+
+  document.getElementById('n-summary').innerHTML = `
+    <b>情绪:</b> ${news.sentiment}(${news.sentiment_confidence||'-'}) · <b>新闻:</b> ${news.news_analyzed||20}条`;
+
+  // 辩论
+  const debateEl = document.getElementById('debate-view');
+  if (DATA.debate.rounds) {
+    let h = '';
+    for (const r of DATA.debate.rounds) {
+      h += `<div class="rtw"><span class="round-tag">第 ${r.round} 轮</span></div>`;
+      if (r.bull) h += `<div class="bub-row"><img src="avatars/bull.svg"><div class="bubble bull-b"><div class="who">🐂</div>${refs((r.bull.content||'').slice(0,200))}...</div></div>`;
+      if (r.bear) h += `<div class="bub-row right"><div class="bubble bear-b"><div class="who">🐻</div>${refs((r.bear.content||'').slice(0,200))}...</div><img src="avatars/bear.svg"></div>`;
+    }
+    debateEl.innerHTML = h;
+  }
+
+  // 研究经理
+  document.getElementById('rm-card').innerHTML = `
+    <div class="ah"><img src="avatars/rm.svg"><div><div class="an">研究经理</div></div><span class="st sdone">✓</span></div>
+    <div style="display:flex;gap:20px;margin:6px 0">
+      <div><div class="sc">${c.combined_score}</div><div style="font-size:10px;color:var(--tx2)">调整后</div></div>
+      <div><div style="font-size:22px;font-weight:800;color:var(--bear)">${c.debate_winner}胜</div><div style="font-size:10px;color:var(--tx2)">delta ${c.debate_delta}</div></div>
+    </div>
+    <div class="dlv"><b>评判理由:</b> ${(c.debate_rationale||'').slice(0,100)}...</div>`;
+
+  // 风险三方
+  const risk3 = document.getElementById('risk3');
+  const rk = DATA.risk.rounds?.[0] || {};
+  risk3.innerHTML = `
+    <div class="rk"><img src="avatars/aggr.svg"><div class="rn">激进方</div><div class="rv">${((rk.aggressive||{}).content||'').slice(0,80)}...</div></div>
+    <div class="rk"><img src="avatars/neu.svg"><div class="rn">中性方</div><div class="rv">${((rk.neutral||{}).content||'').slice(0,80)}...</div></div>
+    <div class="rk"><img src="avatars/cons.svg"><div class="rn">保守方</div><div class="rv">${((rk.conservative||{}).content||'').slice(0,80)}...</div></div>`;
+
+  document.getElementById('riskmgr-card').innerHTML = `
+    <div class="ah"><img src="avatars/riskmgr.svg"><div><div class="an">风险经理</div></div><span class="st sdone">✓</span></div>
+    <div style="display:flex;gap:20px;margin:6px 0">
+      <div><div style="font-size:22px;font-weight:800;color:var(--danger)">${c.risk_level}</div><div style="font-size:10px;color:var(--tx2)">等级</div></div>
+      <div><div style="font-size:22px;font-weight:800">${c.risk_score}</div><div style="font-size:10px;color:var(--tx2)">评分</div></div>
+    </div>`;
+
+  // 交易员
+  document.getElementById('trader-card').innerHTML = `
+    <div class="th"><img src="avatars/trader.svg"><div><div style="font-size:16px;font-weight:700">交易员</div><div style="font-size:11px;color:var(--tx2)">最终决策 · ${m.duration_s}s</div></div></div>
+    <div class="tm">
+      <div class="mb"><div class="l">决策</div><div class="v">${t.action}</div></div>
+      <div class="mb"><div class="l">目标价</div><div class="v">${t.target_price}</div></div>
+      <div class="mb"><div class="l">止损</div><div class="v">${t.stop_loss}</div></div>
+      <div class="mb"><div class="l">置信度</div><div class="v">${t.confidence_total}</div></div>
+      <div class="mb"><div class="l">仓位</div><div class="v">${t.position_range||t.position_advice}</div></div>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--tx2)">${(t.reasoning||'').slice(0,200)}...</div>
+    <button class="view-btn" onclick="openDrawer('trader')">查看完整决策 →</button>`;
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+});
+</script>
+
+<!-- 数据加载 -->
+<script>
+// 读取同目录 result_data.json（通过 fetch）
+fetch('result_data.json')
+  .then(r => r.json())
+  .then(d => { window.RESULT_DATA = d; })
+  .catch(e => console.error('Failed to load data:', e));
+</script>
+</body>
+</html>

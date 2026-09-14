@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- background circle -->
+  <circle cx="100" cy="100" r="96" fill="#E8F4EA"/>
+  <!-- ears -->
+  <ellipse cx="28" cy="92" rx="20" ry="14" fill="#E8C89A" transform="rotate(-20 28 92)"/>
+  <ellipse cx="172" cy="92" rx="20" ry="14" fill="#E8C89A" transform="rotate(20 172 92)"/>
+  <ellipse cx="28" cy="92" rx="11" ry="7" fill="#F2A9A0" transform="rotate(-20 28 92)"/>
+  <ellipse cx="172" cy="92" rx="11" ry="7" fill="#F2A9A0" transform="rotate(20 172 92)"/>
+  <!-- horns -->
+  <path d="M62 40 Q48 24 60 14 Q70 8 76 24 Q70 34 62 40 Z" fill="#F5D061"/>
+  <path d="M138 40 Q152 24 140 14 Q130 8 124 24 Q130 34 138 40 Z" fill="#F5D061"/>
+  <!-- hair tuft -->
+  <path d="M86 24 Q100 14 114 24 Q108 30 112 34 Q100 28 88 34 Q92 30 86 24 Z" fill="#8C6239"/>
+  <!-- head -->
+  <ellipse cx="100" cy="112" rx="66" ry="60" fill="#F2DCB8"/>
+  <!-- muzzle -->
+  <ellipse cx="100" cy="138" rx="38" ry="28" fill="#FAEDD4"/>
+  <!-- eyes -->
+  <circle cx="76" cy="100" r="12" fill="#3B2B20"/>
+  <circle cx="124" cy="100" r="12" fill="#3B2B20"/>
+  <circle cx="80" cy="96" r="4" fill="#FFFFFF"/>
+  <circle cx="128" cy="96" r="4" fill="#FFFFFF"/>
+  <circle cx="73" cy="103" r="2" fill="#FFFFFF"/>
+  <circle cx="121" cy="103" r="2" fill="#FFFFFF"/>
+  <!-- nose -->
+  <ellipse cx="100" cy="134" rx="16" ry="11" fill="#E8A69B"/>
+  <ellipse cx="93" cy="134" rx="3.5" ry="4.5" fill="#B46E63"/>
+  <ellipse cx="107" cy="134" rx="3.5" ry="4.5" fill="#B46E63"/>
+  <!-- smile -->
+  <path d="M90 148 Q100 155 110 148" fill="none" stroke="#B46E63" stroke-width="3" stroke-linecap="round"/>
+  <!-- cheeks -->
+  <ellipse cx="55" cy="122" rx="9" ry="6" fill="#F2A9A0" opacity="0.6"/>
+  <ellipse cx="145" cy="122" rx="9" ry="6" fill="#F2A9A0" opacity="0.6"/>
+  <!-- eyebrow spots -->
+  <ellipse cx="70" cy="80" rx="7" ry="4" fill="#8C6239" opacity="0.35" transform="rotate(-10 70 80)"/>
+  <ellipse cx="130" cy="80" rx="7" ry="4" fill="#8C6239" opacity="0.35" transform="rotate(10 130 80)"/>
+</svg>

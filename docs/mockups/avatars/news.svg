@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- background circle -->
+  <circle cx="100" cy="100" r="98" fill="#FDF3E3"/>
+
+  <!-- ears -->
+  <ellipse cx="30" cy="95" rx="20" ry="14" fill="#B57A4E" transform="rotate(-20 30 95)"/>
+  <ellipse cx="30" cy="95" rx="11" ry="7" fill="#E8A87C" transform="rotate(-20 30 95)"/>
+  <ellipse cx="170" cy="95" rx="20" ry="14" fill="#B57A4E" transform="rotate(20 170 95)"/>
+  <ellipse cx="170" cy="95" rx="11" ry="7" fill="#E8A87C" transform="rotate(20 170 95)"/>
+
+  <!-- horns -->
+  <path d="M55 40 Q45 15 68 20 Q80 23 82 42 Q70 34 55 40Z" fill="#F5E3C0"/>
+  <path d="M145 40 Q155 15 132 20 Q120 23 118 42 Q130 34 145 40Z" fill="#F5E3C0"/>
+
+  <!-- head -->
+  <ellipse cx="100" cy="115" rx="62" ry="58" fill="#D98E5F"/>
+
+  <!-- forelock tuft -->
+  <path d="M85 58 Q100 50 115 58 Q108 62 112 66 Q100 60 88 66 Q92 62 85 58Z" fill="#B57A4E"/>
+
+  <!-- cap -->
+  <path d="M42 62 Q42 34 100 34 Q158 34 158 62 L158 66 Q100 56 42 66Z" fill="#F28C28"/>
+  <path d="M42 62 Q42 58 40 58 L18 62 Q16 72 30 72 L46 70 Q42 66 42 62Z" fill="#E0761B"/>
+  <circle cx="100" cy="34" r="6" fill="#E0761B"/>
+
+  <!-- eyes -->
+  <ellipse cx="76" cy="108" rx="11" ry="13" fill="#3B2B20"/>
+  <circle cx="80" cy="103" r="4" fill="#FFFFFF"/>
+  <circle cx="73" cy="112" r="2" fill="#FFFFFF"/>
+  <ellipse cx="124" cy="108" rx="11" ry="13" fill="#3B2B20"/>
+  <circle cx="128" cy="103" r="4" fill="#FFFFFF"/>
+  <circle cx="121" cy="112" r="2" fill="#FFFFFF"/>
+
+  <!-- eyebrows (curious) -->
+  <path d="M66 88 Q76 83 86 87" fill="none" stroke="#8A5535" stroke-width="4" stroke-linecap="round"/>
+  <path d="M114 84 Q124 80 134 85" fill="none" stroke="#8A5535" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- muzzle -->
+  <ellipse cx="100" cy="145" rx="34" ry="24" fill="#F3C99A"/>
+  <ellipse cx="89" cy="145" rx="6" ry="8" fill="#8A5535"/>
+  <ellipse cx="111" cy="145" rx="6" ry="8" fill="#8A5535"/>
+  <path d="M92 158 Q100 163 108 158" fill="none" stroke="#8A5535" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- blush -->
+  <ellipse cx="55" cy="130" rx="8" ry="5" fill="#F2A98A" opacity="0.7"/>
+  <ellipse cx="145" cy="130" rx="8" ry="5" fill="#F2A98A" opacity="0.7"/>
+</svg>

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="95" fill="#FFF3E0"/>
+
+  <!-- Ears -->
+  <ellipse cx="28" cy="92" rx="18" ry="12" fill="#E8A93C" transform="rotate(-20 28 92)"/>
+  <ellipse cx="28" cy="92" rx="11" ry="7" fill="#F7C868" transform="rotate(-20 28 92)"/>
+  <ellipse cx="172" cy="92" rx="18" ry="12" fill="#E8A93C" transform="rotate(20 172 92)"/>
+  <ellipse cx="172" cy="92" rx="11" ry="7" fill="#F7C868" transform="rotate(20 172 92)"/>
+
+  <!-- Horns -->
+  <path d="M55 42 Q45 20 62 16 Q70 30 68 44 Z" fill="#FFF6E5" stroke="#EBD9BC" stroke-width="2"/>
+  <path d="M145 42 Q155 20 138 16 Q130 30 132 44 Z" fill="#FFF6E5" stroke="#EBD9BC" stroke-width="2"/>
+
+  <!-- Backwards cap back (behind head) -->
+  <path d="M148 44 Q176 48 172 72 Q158 66 146 68 Z" fill="#C99415"/>
+  <circle cx="173" cy="62" r="9" fill="#C99415"/>
+
+  <!-- Head -->
+  <circle cx="100" cy="112" r="66" fill="#F2B33D"/>
+
+  <!-- Hair tuft / cap front -->
+  <path d="M50 84 Q55 42 100 42 Q145 42 150 84 Q125 66 100 78 Q75 66 50 84 Z" fill="#F5C044"/>
+
+  <!-- Cap -->
+  <path d="M46 80 Q48 44 100 44 Q152 44 154 80 Q100 60 46 80 Z" fill="#F5C518"/>
+  <path d="M46 80 Q100 58 154 80 Q154 90 100 86 Q46 90 46 80 Z" fill="#E0AF0D"/>
+  <rect x="96" y="74" width="8" height="12" rx="3" fill="#C99415"/>
+
+  <!-- Eyes -->
+  <ellipse cx="76" cy="108" rx="10" ry="12" fill="#3B2B20"/>
+  <circle cx="79" cy="103" r="4" fill="#FFFFFF"/>
+  <circle cx="73" cy="112" r="2" fill="#FFFFFF" opacity="0.7"/>
+
+  <!-- Smirk eye (wink) -->
+  <path d="M116 106 Q126 98 136 106" fill="none" stroke="#3B2B20" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Snout -->
+  <ellipse cx="100" cy="144" rx="34" ry="24" fill="#F9D06A"/>
+  <ellipse cx="88" cy="144" rx="6" ry="8" fill="#C98A2E"/>
+  <ellipse cx="112" cy="144" rx="6" ry="8" fill="#C98A2E"/>
+
+  <!-- Smirk smile -->
+  <path d="M90 160 Q100 168 112 160" fill="none" stroke="#3B2B20" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Target icon next to him -->
+  <g transform="translate(155 125) scale(0.85)">
+    <circle cx="0" cy="0" r="22" fill="#FFFFFF"/>
+    <circle cx="0" cy="0" r="22" fill="none" stroke="#E05A4E" stroke-width="4"/>
+    <circle cx="0" cy="0" r="13" fill="#F5F5F5"/>
+    <circle cx="0" cy="0" r="13" fill="none" stroke="#E05A4E" stroke-width="4"/>
+    <circle cx="0" cy="0" r="4" fill="#E05A4E"/>
+    <path d="M4 -3 L30 -22" stroke="#3B2B20" stroke-width="4" stroke-linecap="round"/>
+    <path d="M-1 4 L7 13" stroke="#3B2B20" stroke-width="4" stroke-linecap="round"/>
+    <path d="M-6 -4 L-6 -4" stroke="#3B2B20" stroke-width="4"/>
+  </g>
+
+  <!-- Blush -->
+  <ellipse cx="60" cy="132" rx="8" ry="5" fill="#F39B3C" opacity="0.6"/>
+  <ellipse cx="140" cy="130" rx="8" ry="5" fill="#F39B3C" opacity="0.6"/>
+</svg>

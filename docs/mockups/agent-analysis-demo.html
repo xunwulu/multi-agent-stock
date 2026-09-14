@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI分析 Demo v2</title>
+<style>
+:root{--pri:#E8590C;--bg:#FAFAFA;--card:#FFF;--tx:#1A1A2E;--tx2:#868E96;--bd:#E9ECEF;--ok:#2F9E44;--warn:#F59F00;--danger:#E03131;--bull:#E03131;--bear:#2B8A3E}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"PingFang SC","Segoe UI",sans-serif;background:var(--bg);color:var(--tx);line-height:1.6;padding:20px;max-width:1100px;margin:0 auto}
+.dc{background:linear-gradient(135deg,#1A1A2E,#16213E);border-radius:16px;padding:28px 32px;color:#fff;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+.dc .name{font-size:22px;font-weight:700}.dc .code{font-size:14px;color:rgba(255,255,255,.6);margin-left:8px}
+.dc .badge{display:inline-block;background:var(--warn);color:#1A1A2E;font-size:28px;font-weight:800;padding:6px 20px;border-radius:10px;margin-top:10px;letter-spacing:2px}
+.dc .score{font-size:48px;font-weight:800;color:var(--warn)}.dc .sl{font-size:12px;color:rgba(255,255,255,.5)}
+.pr{display:flex;gap:24px;margin-top:12px}.pi{text-align:center}.pi .l{font-size:11px;color:rgba(255,255,255,.5)}.pi .v{font-size:18px;font-weight:700}
+.sb{display:flex;gap:12px;margin-bottom:24px}
+.sc{flex:1;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:10px}
+.sc .ic{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.sc .n{font-size:20px;font-weight:700}.sc .l{font-size:11px;color:var(--tx2)}
+.ph{display:flex;align-items:center;gap:12px;margin:28px 0 16px}
+.pn{width:32px;height:32px;border-radius:50%;background:var(--pri);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+.pt{font-size:16px;font-weight:700}.ps{font-size:12px;color:var(--tx2)}
+.ar{display:flex;gap:14px;flex-wrap:wrap}
+.ac{flex:1;min-width:300px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.04);transition:box-shadow .2s}
+.ac:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.ah{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.av{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;position:relative}
+.an{font-size:15px;font-weight:700}.ar2{font-size:11px;color:var(--tx2)}
+.st{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-left:auto}
+.sdone{background:#D3F9D8;color:var(--ok)}
+.score2{font-size:24px;font-weight:800;margin-bottom:2px}.dir{font-size:12px;color:var(--tx2);margin-bottom:8px}
+.dlv{background:#F8F9FA;border-radius:8px;padding:10px 12px;font-size:12px;color:var(--tx2)}
+.dlv .t{font-weight:700;color:var(--tx);margin-bottom:4px;font-size:11px}
+.dlv ul{list-style:none;padding:0}.dlv li{padding:2px 0;display:flex;gap:6px;align-items:flex-start}
+.dlv li::before{content:'·';color:var(--pri);font-weight:700}
+details.exp{margin-top:10px}
+details.exp summary{cursor:pointer;font-size:12px;color:var(--pri);font-weight:600;user-select:none}
+details.exp summary:hover{text-decoration:underline}
+details.exp .ct{margin-top:8px;background:#F8F9FA;border-radius:8px;padding:12px;font-size:12px;color:var(--tx2);max-height:300px;overflow-y:auto}
+details.exp .ct .row{display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #F1F3F5}
+details.exp .ct .k{min-width:110px;font-weight:600;color:#495057;flex-shrink:0}
+details.exp .ct .v{flex:1}
+.cn{display:flex;justify-content:center;padding:8px 0}
+.cn .ln{width:2px;height:24px;background:#DEE2E6;position:relative}
+.cn .ln::after{content:'';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top:7px solid #DEE2E6}
+.db{display:flex;gap:16px;align-items:stretch}
+.dbs{flex:1}.vs{display:flex;align-items:center;justify-content:center;width:60px;flex-shrink:0}
+.vsb{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--bull),var(--bear));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.bc{border-left:4px solid var(--bull)}.bc2{border-left:4px solid var(--bear)}
+.tc{background:linear-gradient(135deg,#FFF8E1,#FFF4E6);border:2px solid var(--pri);border-radius:14px;padding:24px;margin-top:8px}
+.th{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.th .ba{width:80px;height:80px}
+.tm{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+.mb{background:#fff;border-radius:8px;padding:10px 14px;text-align:center}
+.mb .l{font-size:11px;color:var(--tx2)}.mb .v{font-size:18px;font-weight:700;color:var(--pri)}
+.el{margin-top:14px}.el .t{font-size:13px;font-weight:700;margin-bottom:6px}
+.el ul{list-style:none;padding:0}.el li{font-size:12px;color:var(--tx2);padding:3px 0 3px 16px;position:relative}
+.el li::before{content:'▸';position:absolute;left:0;color:var(--pri)}
+svg.bull{width:100%;height:100%;display:block}
+.tp-row{display:flex;gap:8px;margin:4px 0;align-items:center}
+.tp-bar{flex:1;height:6px;border-radius:3px;background:#E9ECEF;overflow:hidden}
+.tp-fill{height:100%;border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- ===== SVG 小牛（Q版扁平：白圆脸+浅棕小尖角+粉耳+粉鼻+微笑） ===== -->
+<svg style="display:none">
+<defs>
+<g id="calf">
+  <path d="M 30 30 Q 24 18 22 10 Q 28 14 33 22 Q 35 26 36 30" fill="#D9A066" stroke="#C49155" stroke-width="1"/>
+  <path d="M 26 20 L 30 24" stroke="#B8845A" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M 24 15 L 27 19" stroke="#B8845A" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M 70 30 Q 76 18 78 10 Q 72 14 67 22 Q 65 26 64 30" fill="#D9A066" stroke="#C49155" stroke-width="1"/>
+  <path d="M 74 20 L 70 24" stroke="#B8845A" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M 76 15 L 73 19" stroke="#B8845A" stroke-width="1.2" stroke-linecap="round"/>
+  <ellipse cx="24" cy="42" rx="10" ry="7" fill="#FFF" stroke="#E9ECEF" stroke-width="1" transform="rotate(-15 24 42)"/>
+  <ellipse cx="25" cy="42" rx="6" ry="4" fill="#FFD8D8" transform="rotate(-15 25 42)"/>
+  <ellipse cx="76" cy="42" rx="10" ry="7" fill="#FFF" stroke="#E9ECEF" stroke-width="1" transform="rotate(15 76 42)"/>
+  <ellipse cx="75" cy="42" rx="6" ry="4" fill="#FFD8D8" transform="rotate(15 75 42)"/>
+  <circle cx="50" cy="52" r="32" fill="#FFFEFA" stroke="#F1E8DC" stroke-width="1.5"/>
+  <path d="M 42 26 Q 50 20 58 26 Q 55 30 50 29 Q 45 30 42 26" fill="#F0E6D8" opacity="0.7"/>
+  <circle cx="39" cy="48" r="4" fill="#2D2D2D"/>
+  <circle cx="61" cy="48" r="4" fill="#2D2D2D"/>
+  <circle cx="40.5" cy="46.5" r="1.3" fill="#FFF"/>
+  <circle cx="62.5" cy="46.5" r="1.3" fill="#FFF"/>
+  <path d="M 44 60 L 56 60 L 50 68 Z" fill="#FFD8D8" stroke="#FCC2C2" stroke-width="0.8"/>
+  <circle cx="47" cy="63" r="1" fill="#C2255C" opacity="0.35"/>
+  <circle cx="53" cy="63" r="1" fill="#C2255C" opacity="0.35"/>
+  <path d="M 45 73 Q 50 77 55 73" stroke="#C2255C" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="30" cy="60" rx="4" ry="2.5" fill="#FFC9C9" opacity="0.4"/>
+  <ellipse cx="70" cy="60" rx="4" ry="2.5" fill="#FFC9C9" opacity="0.4"/>
+</g>
+
+<g id="calf-tech"><use href="#calf"/>
+  <circle cx="39" cy="48" r="8" fill="none" stroke="#4C6EF5" stroke-width="1.8"/>
+  <circle cx="61" cy="48" r="8" fill="none" stroke="#4C6EF5" stroke-width="1.8"/>
+  <line x1="47" y1="48" x2="53" y2="48" stroke="#4C6EF5" stroke-width="1.8"/>
+  <rect x="70" y="66" width="22" height="16" rx="3" fill="#4C6EF5"/>
+  <rect x="73" y="69" width="3" height="10" fill="#FFF"/><rect x="78" y="73" width="3" height="6" fill="#FFF"/><rect x="83" y="69" width="3" height="10" fill="#FFF"/><rect x="88" y="69" width="1" height="10" fill="#FFF"/>
+</g>
+<g id="calf-fund"><use href="#calf"/>
+  <circle cx="39" cy="48" r="8" fill="none" stroke="#2F9E44" stroke-width="1.8"/>
+  <circle cx="61" cy="48" r="8" fill="none" stroke="#2F9E44" stroke-width="1.8"/>
+  <line x1="47" y1="48" x2="53" y2="48" stroke="#2F9E44" stroke-width="1.8"/>
+  <circle cx="80" cy="70" r="10" fill="#2F9E44"/><text x="80" y="74" text-anchor="middle" fill="#FFF" font-size="12" font-weight="700">¥</text>
+</g>
+<g id="calf-news"><use href="#calf"/>
+  <path d="M 28 32 L 50 20 L 72 32 L 72 37 L 28 37 Z" fill="#E8590C"/>
+  <rect x="26" y="37" width="48" height="3" fill="#C94A0B"/>
+  <rect x="30" y="40" width="6" height="4" fill="#C94A0B"/><rect x="40" y="40" width="6" height="4" fill="#C94A0B"/><rect x="50" y="40" width="6" height="4" fill="#C94A0B"/><rect x="60" y="40" width="6" height="4" fill="#C94A0B"/>
+</g>
+<g id="calf-bull"><use href="#calf"/>
+  <path d="M 50 22 L 50 10 M 45 15 L 50 10 L 55 15" stroke="#E03131" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M 28 28 Q 20 16 18 6 Q 28 12 34 20" fill="#E03131" stroke="#C2255C" stroke-width="1" transform="scale(1.1) translate(-3,-2)"/>
+  <path d="M 72 28 Q 80 16 82 6 Q 72 12 66 20" fill="#E03131" stroke="#C2255C" stroke-width="1" transform="scale(1.1) translate(-3,-2)"/>
+  <circle cx="39" cy="48" r="4.5" fill="#C2255C"/><circle cx="61" cy="48" r="4.5" fill="#C2255C"/>
+  <circle cx="40.5" cy="46.5" r="1.2" fill="#FFF3BF"/><circle cx="62.5" cy="46.5" r="1.2" fill="#FFF3BF"/>
+  <path d="M 43 72 Q 50 66 57 72" stroke="#C2255C" stroke-width="2" fill="none" stroke-linecap="round"/>
+</g>
+<g id="calf-bear"><use href="#calf"/>
+  <path d="M 45 12 L 50 18 L 55 12" stroke="#2B8A3E" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M 28 28 Q 20 16 18 6 Q 28 12 34 20" fill="#2B8A3E" stroke="#1F7A32" stroke-width="1" transform="scale(1.1) translate(-3,-2)"/>
+  <path d="M 72 28 Q 80 16 82 6 Q 72 12 66 20" fill="#2B8A3E" stroke="#1F7A32" stroke-width="1" transform="scale(1.1) translate(-3,-2)"/>
+  <circle cx="39" cy="48" r="4.5" fill="#1F7A32"/><circle cx="61" cy="48" r="4.5" fill="#1F7A32"/>
+  <path d="M 44 70 Q 50 76 56 70" stroke="#1F7A32" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M 45 44 L 53 44" stroke="#1F7A32" stroke-width="1.2" stroke-linecap="round"/>
+</g>
+<g id="calf-rm"><use href="#calf"/>
+  <path d="M 38 24 L 42 14 L 50 20 L 58 14 L 62 24 L 50 20 Z" fill="#9C36B5" stroke="#862E9C" stroke-width="1"/>
+  <circle cx="39" cy="48" r="4" fill="#2D2D2D" opacity="0.6"/><circle cx="61" cy="48" r="4" fill="#2D2D2D" opacity="0.6"/>
+  <path d="M 46 72 Q 50 69 54 72" stroke="#862E9C" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+</g>
+<g id="calf-aggr"><use href="#calf"/>
+  <path d="M 42 24 Q 50 10 58 24 Q 55 18 50 20 Q 45 18 42 24" fill="#FF6B35" stroke="#E8590C" stroke-width="1"/>
+  <path d="M 46 20 Q 50 14 54 20 Q 52 17 50 18 Q 48 17 46 20" fill="#FFA94D"/>
+  <circle cx="39" cy="48" r="5" fill="#E8590C"/><circle cx="61" cy="48" r="5" fill="#E8590C"/>
+  <circle cx="40.5" cy="46.5" r="1.5" fill="#FFF3BF"/><circle cx="62.5" cy="46.5" r="1.5" fill="#FFF3BF"/>
+  <path d="M 42 70 Q 50 76 58 70" stroke="#E8590C" stroke-width="2" fill="none" stroke-linecap="round"/>
+</g>
+<g id="calf-neu"><use href="#calf"/>
+  <circle cx="82" cy="18" r="12" fill="#F8F9FA" stroke="#E9ECEF" stroke-width="1"/>
+  <circle cx="79" cy="15" r="1.2" fill="#868E96"/><circle cx="85" cy="15" r="1.2" fill="#868E96"/>
+  <path d="M 79 20 Q 82 22 85 20" stroke="#868E96" stroke-width="1" fill="none"/>
+  <path d="M 46 72 L 54 72" stroke="#868E96" stroke-width="1.5" stroke-linecap="round"/>
+</g>
+<g id="calf-cons"><use href="#calf"/>
+  <path d="M 70 64 L 80 59 L 90 64 L 90 76 L 80 83 L 70 76 Z" fill="#3B5BDB" stroke="#364FC7" stroke-width="1"/>
+  <path d="M 80 64 L 80 78 M 74 69 L 86 69" stroke="#FFF" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 46 70 Q 50 74 54 70" stroke="#364FC7" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+</g>
+<g id="calf-riskmgr"><use href="#calf"/>
+  <path d="M 46 34 L 50 38 L 54 34 L 58 38 L 50 55 L 42 38 Z" fill="#1A1A2E" opacity="0.8"/>
+  <rect x="68" y="62" width="24" height="18" rx="2" fill="#1A1A2E" opacity="0.8"/>
+  <line x1="71" y1="66" x2="89" y2="66" stroke="#FFF" stroke-width="1.5"/><line x1="71" y1="70" x2="86" y2="70" stroke="#FFF" stroke-width="1.5"/><line x1="71" y1="74" x2="82" y2="74" stroke="#FFF" stroke-width="1.5"/>
+</g>
+<g id="calf-trader"><use href="#calf"/>
+  <path d="M 28 34 Q 50 20 72 34 L 72 38 L 28 38 Z" fill="#F59F00"/>
+  <path d="M 72 34 L 72 38 L 79 35 Z" fill="#E8590C"/>
+  <circle cx="39" cy="48" r="4" fill="#2D2D2D"/><circle cx="61" cy="48" r="4" fill="#2D2D2D"/>
+  <circle cx="40.5" cy="46.5" r="1.2" fill="#F59F00"/><circle cx="62.5" cy="46.5" r="1.2" fill="#F59F00"/>
+  <path d="M 45 71 Q 50 75 55 71" stroke="#E8590C" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <circle cx="80" cy="66" r="11" fill="none" stroke="#F59F00" stroke-width="2"/><circle cx="80" cy="66" r="7" fill="none" stroke="#F59F00" stroke-width="1.5"/><circle cx="80" cy="66" r="3" fill="#E8590C"/>
+</g>
+</defs>
+</svg>
+
+<!-- ==================== 页面 ==================== -->
+
+<div class="dc">
+  <div>
+    <span class="name">工商银行</span><span class="code">601398.SH · 2026-08-13</span><br>
+    <span class="badge">WATCH</span><span style="font-size:13px;color:rgba(255,255,255,.5);margin-left:8px">观望</span>
+  </div>
+  <div style="text-align:right">
+    <div class="score">49.6</div><div class="sl">综合评分</div>
+    <div class="pr">
+      <div class="pi"><div class="l">目标价</div><div class="v">8.16</div></div>
+      <div class="pi"><div class="l">止损价</div><div class="v">7.07</div></div>
+      <div class="pi"><div class="l">置信度</div><div class="v">62</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="sb">
+  <div class="sc"><div class="ic" style="background:#FFF0F6;color:#C2255C">🐮</div><div><div class="n">11</div><div class="l">智能体</div></div></div>
+  <div class="sc"><div class="ic" style="background:#FFF4E6;color:#E8590C">🗣️</div><div><div class="n">2轮</div><div class="l">多空辩论</div></div></div>
+  <div class="sc"><div class="ic" style="background:#EDF2FF;color:#3B5BDB">📊</div><div><div class="n">7维</div><div class="l">评分拆解</div></div></div>
+  <div class="sc"><div class="ic" style="background:#EBFBEE;color:#2F9E44">⏱️</div><div><div class="n">266s</div><div class="l">总耗时</div></div></div>
+  <div class="sc"><div class="ic" style="background:#FFF3BF;color:#E67700">🔥</div><div><div class="n">635K</div><div class="l">input tokens</div></div></div>
+</div>
+
+<!-- Phase 1 -->
+<div class="ph"><div class="pn">1</div><div><div class="pt">分析师团队</div><div class="ps">三面并行分析 · 各自独立出具报告</div></div></div>
+
+<div class="ar">
+  <div class="ac">
+    <div class="ah">
+      <div class="av" style="background:#EDF2FF"><svg class="bull" viewBox="0 0 100 90"><use href="#calf-tech"/></svg></div>
+      <div><div class="an">技术分析师</div><div class="ar2">Technical Analyst</div></div>
+      <span class="st sdone">✓ 完成</span>
+    </div>
+    <div class="score2">58.2 <span style="font-size:12px;color:#868E96">分 · neutral</span></div>
+    <div class="dlv">
+      <div class="t">核心交付物</div>
+      <ul>
+        <li><b>支撑/阻力:</b> 强支撑 7.07 / 阻力 8.16</li>
+        <li><b>MACD:</b> 底背离（看涨）· <b>盈亏比:</b> 1:1.54</li>
+        <li><b>K线形态:</b> 晨星反转 + 十字星</li>
+        <li><b>资金:</b> 近5日净流入2亿，最新转流出</li>
+        <li><b>周线:</b> MACD多头区，但收大阴线动能转弱</li>
+      </ul>
+    </div>
+    <details class="exp"><summary>展开全部 37 个字段 ▾</summary>
+      <div class="ct">
+        <div class="row"><div class="k">短期趋势</div><div class="v">日线MACD底背离，反弹信号初现</div></div>
+        <div class="row"><div class="k">中期趋势</div><div class="v">均线空头排列，20日-3.5%</div></div>
+        <div class="row"><div class="k">长期趋势</div><div class="v">周线MACD仍多头(DIF>DEA>0)</div></div>
+        <div class="row"><div class="k">共振分析</div><div class="v">日线MACD死叉+KDJ超卖+RSI中性，信号分歧</div></div>
+        <div class="row"><div class="k">K线形态</div><div class="v">晨星(08-03) / 十字星(07-31) / 三只乌鸦(07-30)</div></div>
+        <div class="row"><div class="k">量能信号</div><div class="v">温和放量(量比1.15)</div></div>
+        <div class="row"><div class="k">换手信号</div><div class="v">低换手 0.15%</div></div>
+        <div class="row"><div class="k">相对强度</div><div class="v">跑输大盘 -2.3%</div></div>
+        <div class="row"><div class="k">资金流向</div><div class="v">近5日净流入+20056万，最新转流出-40677万</div></div>
+        <div class="row"><div class="k">牛场景目标</div><div class="v">8.16 (概率60%) — 放量突破MA20企稳</div></div>
+        <div class="row"><div class="k">基准场景</div><div class="v">7.35 (概率30%) — 震荡整理</div></div>
+        <div class="row"><div class="k">熊场景目标</div><div class="v">6.95 (概率10%) — 跌破7.31双底失效</div></div>
+        <div class="row"><div class="k">失败条件</div><div class="v">放量跌破7.31(MA120)和7.21(Fibonacci 0.786)</div></div>
+      </div>
+    </details>
+  </div>
+
+  <div class="ac">
+    <div class="ah">
+      <div class="av" style="background:#EBFBEE"><svg class="bull" viewBox="0 0 100 90"><use href="#calf-fund"/></svg></div>
+      <div><div class="an">基本面分析师</div><div class="ar2">Fundamentals Analyst</div></div>
+      <span class="st sdone">✓ 完成</span>
+    </div>
+    <div class="score2">55.0 <span style="font-size:12px;color:#868E96">分 · neutral</span></div>
+    <div class="dlv">
+      <div class="t">核心交付物</div>
+      <ul>
+        <li><b>PE 7.27</b>（历史3%分位）· <b>OCF 16.29</b>（极好）</li>
+        <li><b>DCF:</b> 内在价值 9.85，低估 18%</li>
+        <li><b>股息率:</b> 5.2% · <b>ROE:</b> 11.2%</li>
+        <li><b>insider:</b> neutral · <b>估值:</b> undervalued</li>
+      </ul>
+    </div>
+    <details class="exp"><summary>展开全部 60 个字段 ▾</summary>
+      <div class="ct">
+        <div class="row"><div class="k">DCF内在价值</div><div class="v">9.85 元（当前7.51，低估18%）</div></div>
+        <div class="row"><div class="k">牛场景目标</div><div class="v">9.20 — 估值修复至行业均值</div></div>
+        <div class="row"><div class="k">基准场景</div><div class="v">7.60 — 维持当前估值</div></div>
+        <div class="row"><div class="k">熊场景目标</div><div class="v">6.30 — 净息差进一步收窄</div></div>
+        <div class="row"><div class="k">杜邦-净利率</div><div class="v">38.2%</div></div>
+        <div class="row"><div class="k">杜邦-周转率</div><div class="v">0.03次</div></div>
+        <div class="row"><div class="k">杜邦-杠杆</div><div class="v">8.5倍</div></div>
+        <div class="row"><div class="k">核心优势</div><div class="v">①全球最大行 ②零有息负债 ③OCF极好 ④股息5.2%</div></div>
+        <div class="row"><div class="k">核心风险</div><div class="v">①增速停滞 ②利率下行压息差 ③insider未增持</div></div>
+        <div class="row"><div class="k">跟踪指标</div><div class="v">ROE≥11% / 营收≥3% / PE≤10% / OCF≥10 / 增减持</div></div>
+        <div class="row"><div class="k">机构持仓数</div><div class="v">142家</div></div>
+        <div class="row"><div class="k">年均ROE</div><div class="v">12.1%</div></div>
+        <div class="row"><div class="k">治理事件</div><div class="v">无</div></div>
+      </div>
+    </details>
+  </div>
+
+  <div class="ac">
+    <div class="ah">
+      <div class="av" style="background:#FFF4E6"><svg class="bull" viewBox="0 0 100 90"><use href="#calf-news"/></svg></div>
+      <div><div class="an">新闻分析师</div><div class="ar2">News Analyst</div></div>
+      <span class="st sdone">✓ 完成</span>
+    </div>
+    <div class="score2">69 <span style="font-size:12px;color:#868E96">分 · bullish</span></div>
+    <div class="dlv">
+      <div class="t">核心交付物</div>
+      <ul>
+        <li><b>情绪:</b> positive（置信度75%）</li>
+        <li><b>事件:</b> 大行估值修复 + 分红落地 + 利率改善</li>
+        <li><b>正面:</b> 3条 / <b>负面:</b> 1条</li>
+      </ul>
+    </div>
+    <details class="exp"><summary>展开全部 15 个字段 ▾</summary>
+      <div class="ct">
+        <div class="row"><div class="k">事件1(正面)</div><div class="v">大行估值修复预期增强 — 影响高</div></div>
+        <div class="row"><div class="k">事件2(正面)</div><div class="v">分红方案落地 — 影响中</div></div>
+        <div class="row"><div class="k">事件3(正面)</div><div class="v">利率政策边际改善 — 影响中</div></div>
+        <div class="row"><div class="k">风险事件</div><div class="v">无重大利空</div></div>
+        <div class="row"><div class="k">正面因素</div><div class="v">①估值修复 ②高股息 ③政策利好</div></div>
+        <div class="row"><div class="k">负面因素</div><div class="v">①息差收窄预期仍存</div></div>
+        <div class="row"><div class="k">关键观察</div><div class="v">大行估值修复预期增强</div></div>
+        <div class="row"><div class="k">失效条件</div><div class="v">①利率大幅下调 ②不良率上升</div></div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 2 -->
+<div class="ph"><div class="pn">2</div><div><div class="pt">多空辩论</div><div class="ps">2 轮对抗 · 接收三份分析师报告</div></div></div>
+
+<div class="db">
+  <div class="dbs">
+    <div class="ac bc">
+      <div class="ah">
+        <div class="av" style="background:#FFF0F0"><svg class="bull" viewBox="0 0 100 90"><use href="#calf-bull"/></svg></div>
+        <div><div class="an">看多辩手</div><div class="ar2">Bull Debater</div></div>
+      </div>
+      <div class="dlv"><div class="t">R1 立论</div><ul>
+        <li>PE 7.27 历史3%分位，极度低估</li>
+        <li>股息率 5.2% 超银行理财</li>
+        <li>OCF 16.29倍，利润含金量极高</li>
+      </ul></div>
+      <div class="dlv" style="margin-top:8px"><div class="t">R2 反驳</div><ul>
+        <li>增速虽降但绝对值稳定，已price in</li>
+        <li>五大行估值修复是全球趋势</li>
+      </ul></div>
+      <details class="exp"><summary>展开完整辩论 ▾</summary>
+        <div class="ct">R1: 估值极低+零有息负债+高股息+OCF 16倍<br><br>R2: 增速虽降但绝对值稳定。A/H溢价收敛是全球趋势。分红率稳定30%。</div>
+      </details>
+    </div>
+  </div>
+  <div class="vs"><div class="vsb">VS</div></div>
+  <div class="dbs">
+    <div class="ac bc2">
+      <div class="ah">
+        <div class="av" style="background:#EBFBEE"><svg class="bull" viewBox="0 0 100 90"><use href="#calf-bear"/></svg></div>
+        <div><div class="an">看空辩手</div><div class="ar2">Bear Debater</div></div>
+      </div>
+      <div class="dlv"><div class="t">R1 立论</div><ul>
+        <li>净利增速仅+1.5%，接近停滞</li>
+        <li>insider=neutral，机构未增持</li>
+        <li>利率下行周期息差持续收窄</li>
+      </ul></div>
+      <div class="dlv" style="margin-top:8px"><div class="t">R2 反驳</div><ul>
+        <li>低PE是合理定价非错杀</li>
+        <li>无催化剂，估值修复缺乏动力</li>
+      </ul></div>
+      <details class="exp"><summary>展开完整辩论 ▾</summary>
+        <div class="ct">R1: 利率下行→息差收窄→利润承压。ROE从13%降至11.2%。<br><br>R2: 低PE反映市场对增速的合理定价。需息差企稳信号才值得配置。</div>
+      </details>
+    </div>
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 3 -->
+<div class="ph"><div class="pn">3</div><div><div class="pt">研究经理评判</div><div class="ps">接收：三份报告 + 完整辩论 + 新闻面</div></div></div>
+
+<div class="ar">
+  <div class="ac" style="max-width:650px">
+    <div class="ah">
+      <div class="av" style="background:#F3D9FA"><svg class="bull" viewBox="0 0 100 90"><use href="#calf-rm"/></svg></div>
+      <div><div class="an">研究经理</div><div class="ar2">Research Manager</div></div>
+      <span class="st sdone">✓</span>
+    </div>
+    <div style="display:flex;gap:24px;margin:8px 0">
+      <div><div class="score2">49.6</div><div style="font-size:11px;color:#868E96">调整后综合分</div></div>
+      <div><div style="font-size:24px;font-weight:800;color:var(--bear)">bear 胜</div><div style="font-size:11px;color:#868E96">delta -3</div></div>
+      <div><div style="font-size:24px;font-weight:800">neutral</div><div style="font-size:11px;color:#868E96">综合方向</div></div>
+    </div>
+    <div class="dlv"><div class="t">评判理由</div><ul>
+      <li>"看空方成功论证利率下行对息差的持续挤压"</li>
+      <li>"看多方虽指出极低估值，但缺乏增长催化剂"</li>
+    </ul></div>
+    <div class="dlv" style="margin-top:8px"><div class="t">最强论点</div><ul>
+      <li><b style="color:var(--bull)">看多:</b> "PE历史3%分位+5.2%股息"</li>
+      <li><b style="color:var(--bear)">看空:</b> "增速1.5%停滞，低PE是合理定价"</li>
+    </ul></div>
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 4-5 -->
+<div class="ph"><div class="pn">4-5</div><div><div class="pt">风险辩论 + 风险经理</div><div class="ps">三方辩论 · 风险经理汇总</div></div></div>
+
+<div class="ar" style="margin-bottom:12px">
+  <div class="ac" style="border-top:3px solid #FF6B35;min-width:260px">
+    <div class="ah"><div class="av" style="background:#FFF0E6;width:44px;height:44px"><svg class="bull" viewBox="0 0 100 90"><use href="#calf-aggr"/></svg></div><div><div class="an" style="font-size:13px">激进方</div></div></div>
+    <div class="dlv"><ul>
+      <li>PE 7.27 vs DCF 9.85，低估18%</li>
+      <li>五大行系统性估值修复是确定性事件</li>
+      <li>跌了就是机会，逢低配置</li>
+    </ul></div>
+  </div>
+  <div class="ac" style="border-top:3px solid #868E96;min-width:260px">
+    <div class="ah"><div class="av" style="background:#F1F3F5;width:44px;height:44px"><svg class="bull" viewBox="0 0 100 90"><use href="#calf-neu"/></svg></div><div><div class="an" style="font-size:13px">中性方</div></div></div>
+    <div class="dlv"><ul>
+      <li>低估值但缺催化剂</li>
+      <li>适合底仓配置，不宜重仓</li>
+      <li>等息差企稳或insider转净买</li>
+    </ul></div>
+  </div>
+  <div class="ac" style="border-top:3px solid #3B5BDB;min-width:260px">
+    <div class="ah"><div class="av" style="background:#EDF2FF;width:44px;height:44px"><svg class="bull" viewBox="0 0 100 90"><use href="#calf-cons"/></svg></div><div><div class="an" style="font-size:13px">保守方</div></div></div>
+    <div class="dlv"><ul>
+      <li>利率下行远未结束，息差持续承压</li>
+      <li>ROE趋势向下(13%→11.2%)</li>
+      <li>insider未增持=内部人不看好</li>
+    </ul></div>
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<div class="ar">
+  <div class="ac" style="max-width:650px">
+    <div class="ah">
+      <div class="av" style="background:#DBE4FF"><svg class="bull" viewBox="0 0 100 90"><use href="#calf-riskmgr"/></svg></div>
+      <div><div class="an">风险经理</div><div class="ar2">Risk Manager</div></div>
+      <span class="st sdone">✓</span>
+    </div>
+    <div style="display:flex;gap:24px;margin:8px 0">
+      <div><div style="font-size:24px;font-weight:800;color:var(--danger)">high</div><div style="font-size:11px;color:#868E96">风险等级</div></div>
+      <div><div style="font-size:24px;font-weight:800">68</div><div style="font-size:11px;color:#868E96">风险评分</div></div>
+      <div><div style="font-size:24px;font-weight:800">standard</div><div style="font-size:11px;color:#868E96">仓位建议</div></div>
+    </div>
+    <div class="dlv"><div class="t">核心风险</div><ul>
+      <li>利率下行周期银行净息差持续收窄</li>
+      <li>净利增速接近停滞，缺乏增长动能</li>
+    </ul></div>
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 6 -->
+<div class="ph"><div class="pn">6</div><div><div class="pt">交易员最终决策</div><div class="ps">接收：全部信息</div></div></div>
+
+<div class="tc">
+  <div class="th">
+    <div class="av ba" style="background:#FFF4E6"><svg class="bull" viewBox="0 0 100 90"><use href="#calf-trader"/></svg></div>
+    <div><div style="font-size:18px;font-weight:700">交易员</div><div style="font-size:12px;color:#868E96">Trader · 最终决策</div></div>
+    <span class="st sdone" style="margin-left:auto">✓ 266s</span>
+  </div>
+  <div class="tm">
+    <div class="mb"><div class="l">决策</div><div class="v">WATCH</div></div>
+    <div class="mb"><div class="l">目标价</div><div class="v">8.16</div></div>
+    <div class="mb"><div class="l">止损价</div><div class="v">7.07</div></div>
+    <div class="mb"><div class="l">置信度</div><div class="v">62</div></div>
+    <div class="mb"><div class="l">仓位</div><div class="v">40-70%</div></div>
+    <div class="mb"><div class="l">时间框架</div><div class="v">1-3月</div></div>
+  </div>
+
+  <div style="margin-top:14px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:6px">▸ 分批止盈计划</div>
+    <div style="display:flex;gap:8px">
+      <div style="flex:1;background:#fff;border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:11px;color:#868E96">第一目标</div>
+        <div style="font-size:16px;font-weight:700;color:#2F9E44">7.60</div>
+        <div style="font-size:11px;color:#868E96">减仓 30% · DCF基准</div>
+      </div>
+      <div style="flex:1;background:#fff;border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:11px;color:#868E96">第二目标</div>
+        <div style="font-size:16px;font-weight:700;color:#F59F00">8.16</div>
+        <div style="font-size:11px;color:#868E96">减仓 40% · 技术阻力</div>
+      </div>
+      <div style="flex:1;background:#fff;border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:11px;color:#868E96">第三目标</div>
+        <div style="font-size:16px;font-weight:700;color:#E03131">9.20</div>
+        <div style="font-size:11px;color:#868E96">清仓 30% · DCF乐观</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="el"><div class="t">▸ 关键催化剂</div><ul>
+    <li>利率政策边际改善</li>
+    <li>insider 从 neutral 转为 net_buy</li>
+    <li>净息差企稳数据公布</li>
+  </ul></div>
+
+  <div class="el"><div class="t">▸ 入场条件</div><ul>
+    <li>放量站稳 MA10（7.35）3 日以上</li>
+    <li>MACD 绿柱转红，底背离确认</li>
+    <li>机构 insider 转为 net_buy</li>
+  </ul></div>
+
+  <details class="exp"><summary>展开完整推理 + 风险提示 + 置信度拆解 ▾</summary>
+    <div class="ct" style="max-height:none">
+      <p style="margin-bottom:10px"><b>决策推理：</b>综合49.6分中性偏空。PE 7.27低估+OCF 16.29极好+股息5.2%，但insider=neutral+增速+1.5%停滞+息差收窄。看空方胜(-3)。风险high。建议观望。</p>
+      <p style="margin-bottom:4px"><b>风险提示：</b></p>
+      <ul><li>利率下行息差收窄</li><li>增速停滞</li><li>无增量资金</li></ul>
+      <p style="margin:8px 0 6px"><b>置信度 5 维拆解（62/100）：</b></p>
+      <div class="row"><div class="k">信号一致性</div><div class="v"><div class="tp-row"><div class="tp-bar"><div class="tp-fill" style="width:80%;background:#4C6EF5"></div></div><span>16/20</span></div></div></div>
+      <div class="row"><div class="k">数据充分性</div><div class="v"><div class="tp-row"><div class="tp-bar"><div class="tp-fill" style="width:85%;background:#2F9E44"></div></div><span>17/20</span></div></div></div>
+      <div class="row"><div class="k">辩论确定性</div><div class="v"><div class="tp-row"><div class="tp-bar"><div class="tp-fill" style="width:55%;background:#F59F00"></div></div><span>11/20</span></div></div></div>
+      <div class="row"><div class="k">风控可控性</div><div class="v"><div class="tp-row"><div class="tp-bar"><div class="tp-fill" style="width:60%;background:#E8590C"></div></div><span>12/20</span></div></div></div>
+      <div class="row"><div class="k">估值合理性</div><div class="v"><div class="tp-row"><div class="tp-bar"><div class="tp-fill" style="width:60%;background:#9C36B5"></div></div><span>12/20</span></div></div></div>
+    </div>
+  </details>
+</div>
+
+<div style="text-align:center;padding:20px;color:#868E96;font-size:12px">11 agents · 6 phases · 266s · 635K tokens</div>
+</body>
+</html>

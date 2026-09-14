@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI分析 Demo v3 - OpenMoji风格</title>
+<style>
+:root{--pri:#E8590C;--bg:#FAFAFA;--card:#FFF;--tx:#1A1A2E;--tx2:#868E96;--bd:#E9ECEF;--ok:#2F9E44;--warn:#F59F00;--danger:#E03131}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"PingFang SC","Segoe UI",sans-serif;background:var(--bg);color:var(--tx);line-height:1.6;padding:20px;max-width:1100px;margin:0 auto}
+
+.dc{background:linear-gradient(135deg,#1A1A2E,#16213E);border-radius:16px;padding:28px 32px;color:#fff;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+.dc .name{font-size:22px;font-weight:700}.dc .code{font-size:14px;color:rgba(255,255,255,.6);margin-left:8px}
+.dc .badge{display:inline-block;background:var(--warn);color:#1A1A2E;font-size:28px;font-weight:800;padding:6px 20px;border-radius:10px;margin-top:10px;letter-spacing:2px}
+.dc .score{font-size:48px;font-weight:800;color:var(--warn)}.dc .sl{font-size:12px;color:rgba(255,255,255,.5)}
+.pr{display:flex;gap:24px;margin-top:12px}.pi{text-align:center}.pi .l{font-size:11px;color:rgba(255,255,255,.5)}.pi .v{font-size:18px;font-weight:700}
+.sb{display:flex;gap:12px;margin-bottom:24px}
+.sc2{flex:1;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:10px}
+.sc2 .ic{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.sc2 .n{font-size:20px;font-weight:700}.sc2 .l{font-size:11px;color:var(--tx2)}
+.ph{display:flex;align-items:center;gap:12px;margin:28px 0 16px}
+.pn{width:32px;height:32px;border-radius:50%;background:var(--pri);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+.pt{font-size:16px;font-weight:700}.ps{font-size:12px;color:var(--tx2)}
+.ar{display:flex;gap:14px;flex-wrap:wrap}
+.ac{flex:1;min-width:300px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.04);transition:box-shadow .2s}
+.ac:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.ah{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.av-wrap{width:56px;height:56px;flex-shrink:0;position:relative}
+.av-wrap .base{width:100%;height:100%;border-radius:50%;overflow:hidden}
+.av-wrap .role-badge{position:absolute;bottom:-2px;right:-2px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.an{font-size:15px;font-weight:700}.ar2{font-size:11px;color:var(--tx2)}
+.st{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-left:auto}
+.sdone{background:#D3F9D8;color:var(--ok)}
+.score2{font-size:24px;font-weight:800;margin-bottom:2px}
+.dlv{background:#F8F9FA;border-radius:8px;padding:10px 12px;font-size:12px;color:var(--tx2)}
+.dlv .t{font-weight:700;color:var(--tx);margin-bottom:4px;font-size:11px}
+.dlv ul{list-style:none;padding:0}.dlv li{padding:2px 0;display:flex;gap:6px;align-items:flex-start}
+.dlv li::before{content:'·';color:var(--pri);font-weight:700}
+details.exp{margin-top:10px}
+details.exp summary{cursor:pointer;font-size:12px;color:var(--pri);font-weight:600;user-select:none}
+details.exp summary:hover{text-decoration:underline}
+details.exp .ct{margin-top:8px;background:#F8F9FA;border-radius:8px;padding:12px;font-size:12px;color:var(--tx2);max-height:400px;overflow-y:auto}
+details.exp .ct .row{display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #F1F3F5}
+details.exp .ct .k{min-width:120px;font-weight:600;color:#495057;flex-shrink:0}
+details.exp .ct .v{flex:1;word-break:break-word}
+details.exp .ct .sub{margin:6px 0 2px;font-weight:700;color:var(--tx);font-size:11px}
+.cn{display:flex;justify-content:center;padding:8px 0}
+.cn .ln{width:2px;height:24px;background:#DEE2E6;position:relative}
+.cn .ln::after{content:'';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top:7px solid #DEE2E6}
+.db{display:flex;gap:16px;align-items:stretch}.dbs{flex:1}
+.vs{display:flex;align-items:center;justify-content:center;width:60px;flex-shrink:0}
+.vsb{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#E03131,#2B8A3E);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.bc{border-left:4px solid #E03131}.bc2{border-left:4px solid #2B8A3E}
+.tc{background:linear-gradient(135deg,#FFF8E1,#FFF4E6);border:2px solid var(--pri);border-radius:14px;padding:24px;margin-top:8px}
+.th{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.th .av-wrap{width:72px;height:72px}
+.th .av-wrap .role-badge{width:28px;height:28px;font-size:16px}
+.tm{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+.mb{background:#fff;border-radius:8px;padding:10px 14px;text-align:center}
+.mb .l{font-size:11px;color:var(--tx2)}.mb .v{font-size:18px;font-weight:700;color:var(--pri)}
+.el{margin-top:14px}.el .t{font-size:13px;font-weight:700;margin-bottom:6px}
+.el ul{list-style:none;padding:0}.el li{font-size:12px;color:var(--tx2);padding:3px 0 3px 16px;position:relative}
+.el li::before{content:'▸';position:absolute;left:0;color:var(--pri)}
+.tp-row{display:flex;gap:8px;margin:4px 0;align-items:center}
+.tp-bar{flex:1;height:6px;border-radius:3px;background:#E9ECEF;overflow:hidden}
+.tp-fill{height:100%;border-radius:3px}
+.json-field{padding:3px 0;border-bottom:1px solid #F1F3F5}
+.json-field .k{font-weight:600;color:#495057;font-size:11px}
+.json-field .v{color:#666;font-size:11px;word-break:break-all}
+</style>
+</head>
+<body>
+
+<!-- ===== OpenMoji 奶牛头像（专业设计） + 角色徽章 ===== -->
+<svg style="display:none">
+<defs>
+<symbol id="cow" viewBox="0 0 72 72">
+  <g id="color">
+    <path fill="#fff" d="m15,12.0211h0c0,.6116.3056,1.1827.8145,1.5219l4.2449,2.83c.5764.3843,1.774.8721,1.688,1.5596l-1.7051,6.7284c-.028.2241-.0143.4514.0405.6705l1.8343,7.3371c.0548.2191.0685.4464.0405.6705l-.9152,7.322c-.028.2241-.0143.4514.0405.6705l1.7456,6.9825c.1104.4414.3813.8259.7599,1.0783l1.7312,1.1541c.433.2887.7225.7481.7961,1.2632l-.2598,3.7979s-.2916,3.1088,2.3012,6.051c1.6332,1.8533,5.7148,3.8846,8.2656,3.8847,3.3409,0,5.9547-1.9378,7.3949-3.6465.8914-1.0576,2.5398-2.4978,3.2821-5.8244.2014-.9023-.0996-3.6967-.0996-3.6967,0-.2477.4009-1.311.4985-1.5386l1.3063-2.5077c.0158-.0369.0264-.0595.0389-.0795.5394-.8642.7885-1.8786.8851-2.8927,0,0,.9043-4.9747,1.1585-6.6406.005-.0325-.4996-5.5158-.4953-5.5485l1.5496-6.8172c.0386-.2315.0323-.4683-.0187-.6975l-1.5364-6.9139c-.2151-.9678.3801-1.9308,1.3419-2.1712l1.6416-.4104c.4075-.1019.7676-.341,1.0196-.677l2.2445-2.9927c.2375-.3166.3658-.7017.3658-1.0974v-.1102c0-1.1701-1.1152-1.1434-2.2575-.8896l-6.191.4868c-.3593.0798-.7343.0494-1.0761-.0873l-4.3602-1.7441c-.0767-.0307-.1555-.0562-.2357-.0762l-7.3628-1.8407c-.3375-.0844-.692-.0708-1.022.0393l-5.3714,1.7905c-.0821.0274-.1622.0605-.2396.0992l-3.4104,1.7052c-.3092.1546-.656.2184-1,.184l-7.4623-.7462c-1.0768-.1077-2.0111.7379-2.0111,1.82Z"/>
+    <path fill="#a57939" d="m65.1818,16.5746l-3.5658.2422c-.1304.0089-.2591.0347-.3828.077l-7.081,2.42c-.043.0147-.0854.0314-.1269.0499l-2.6409,1.1807c-.1171.0524-.2341.0883-.3607.1091-1.3737.2264-10.1731,1.8874-10.0194,7.2658,0,0-.4646,3.6003,1.951,6.1473,1.8803,1.9826,2.9889,4.6478,2.5192,7.3395-.3101,1.7768-1.2515,3.5306-3.4702,4.594h0l2.9104,1.0217c.4295.1508.767.4887.9174.9183l1.4763,4.2192,1.6616-1.7712c1.1136-1.1945,1.9689-5.8742,1.9689-5.8742.4855-3.6065.5032-7.264.0031-10.8685-.0148-.1064-.0287-.2031-.0417-.2889h0s1.2606-.965,1.2606-.965c.1608-.1231.3449-.2123.5411-.2622l5.5633-1.4149c.1716-.0436.3341-.1174.4799-.2177l4.3017-2.9608c.1811-.1247.3326-.2877.4436-.4775l2.6005-4.4465c.1016-.1737.1671-.3661.1927-.5658l.4849-3.7874c.1198-.9359-.6453-1.748-1.5867-1.6841Z"/>
+    <path fill="#a57939" d="m6.867,16.5746l3.5658.2422c.1304.0089.2591.0347.3828.077l7.081,2.42c.043.0147.0854.0314.1269.0499l2.6409,1.1807c.1171.0524.2341.0883.3607.1091,1.3737.2264,10.1731,1.8874,10.0194,7.2658,0,0,.4645,3.6003-1.951,6.1473-1.8803,1.9826-2.9889,4.6478-2.5192,7.3395.3101,1.7768,1.2515,3.5306,3.4702,4.594h0l-2.9104,1.0217c-.4295.1508-.767.4887-.9174.9183l-1.4763,4.2192-1.6616-1.7712c-1.1136-1.1945-2.0412-6.9083-2.0412-6.9083-.3413-3.1673-.1698-6.3689.5077-9.4817h0c.1234-.5672-.092-1.1546-.553-1.5075l-.4665-.3571c-.1858-.1422-.4024-.2389-.6323-.2824l-6.0587-1.1441c-.2049-.0387-.3994-.1197-.5711-.2379l-4.2616-2.9332c-.1811-.1247-.3326-.2877-.4436-.4775l-2.6005-4.4465c-.1016-.1737-.1671-.3661-.1927-.5657l-.485-3.7875c-.1198-.9359.6453-1.7481,1.5867-1.6841Z"/>
+    <path fill="#f4aa41" d="m27.3197,47.9945l-.6598,1.1318c-.7217,2.1691-.9617,4.4695-.7033,6.7408h0c.1194,1.0495.9592,1.871,2.0111,1.9674l.0811.0074,6.4963-.5146c1.249-.0989,2.5045-.0796,3.7499.0577l5.9262.6536c.7598.0838,1.5171-.1772,2.064-.7112h0c.4669-.4559.7436-1.0718.7746-1.7237l.0484-1.0203c.1133-2.3893-.4008-4.7667-1.4912-6.8958h0c-.4317-.843-1.2874-1.3848-2.234-1.4148l-8.6286-.2728h-3.9632c-1.4296,0-2.7515.7595-3.4715,1.9945Z"/>
+  </g>
+  <g id="line">
+    <path d="m26.1616,31.0595s-3.0474-.219-3.8284-1-.781-2.0474,0-2.8284,2.0474-.781,2.8284,0c.7811.781,1,3.8284,1,3.8284Z"/>
+    <path fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19.6191,26.2353l2.0377-9.248s-7.6806-.627-6.505-7.4454c0,0,9.9534,3.2917,12.7748.4702,0,0,6.2375-6.6642,16.1956-.0429,3.3226,2.2093,12.7748-.4702,12.7748-.4702,1.1756,6.8184-6.505,7.4454-6.505,7.4454l2.0377,9.248"/>
+    <path fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m28.4825,46h15.7265c.272,0,.5324.1138.7082.3213.8467.9992,3.1442,4.3471,2.0943,10.2966-.1836,1.0404-1.1647,1.7418-2.2037,1.5503-3.4759-.6406-11.324-1.7893-16.7592-.3263-1.1058.2976-2.2065-.454-2.3432-1.5909-.302-2.5115-.3157-6.6284,2.0103-9.8682.1751-.2438.4667-.3828.7668-.3828Z"/>
+    <path fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m29.8671,50.277s-.6865,2.855,3.1538,2.926"/>
+    <path fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m29.1276,61.4663s6.3482,7.9157,13.7936.3135"/>
+    <path fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m17.5177,20.1544c-3.0642-1.9576-7.3791-4.5873-12.4353-3.3426,0,0-1.4891,14.0288,15.3611,15.5179l1.2133.881s-2.2906,8.9177,1.2618,16.1018"/>
+    <path d="m45.8871,31.0139s3.0474-.219,3.8284-1c.7811-.781.7811-2.0474,0-2.8284-.781-.781-2.0474-.781-2.8284,0-.781.781-1,3.8284-1,3.8284Z"/>
+    <path fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m43.1817,50.2341s.6865,2.855-3.1538,2.926"/>
+    <path fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m54.7743,19.9585c3.0474-1.888,7.2683-4.4017,12.1921-3.1896,0,0,1.4891,14.0288-15.3611,15.5179l-1.2133.881s2.5382,7.9772-1.0141,15.1613"/>
+  </g>
+</symbol>
+</defs>
+</svg>
+
+<!-- 头像组件模板 -->
+<template id="avatar-tpl">
+  <div class="av-wrap">
+    <div class="base"><svg style="width:100%;height:100%;display:block" viewBox="0 0 72 72"><use href="#cow"/></svg></div>
+    <div class="role-badge"></div>
+  </div>
+</template>
+
+<script>
+// 角色徽章映射
+const ROLE_BADGES = {
+  tech:    { icon: '📊', color: '#EDF2FF' },
+  fund:    { icon: '💰', color: '#EBFBEE' },
+  news:    { icon: '📰', color: '#FFF4E6' },
+  bull:    { icon: '🔴', color: '#FFEBEB' },
+  bear:    { icon: '🟢', color: '#E9FAE5' },
+  rm:      { icon: '👑', color: '#F3D9FA' },
+  aggr:    { icon: '🔥', color: '#FFF0E6' },
+  neu:     { icon: '⚖️', color: '#F1F3F5' },
+  cons:    { icon: '🛡️', color: '#EDF2FF' },
+  riskmgr: { icon: '📋', color: '#DBE4FF' },
+  trader:  { icon: '🎯', color: '#FFF4E6' },
+};
+
+function createAvatar(role) {
+  const tpl = document.getElementById('avatar-tpl');
+  const clone = tpl.content.cloneNode(true);
+  const badge = clone.querySelector('.role-badge');
+  const info = ROLE_BADGES[role] || {};
+  badge.textContent = info.icon || '';
+  badge.style.background = info.color || '#FFF';
+  return clone;
+}
+
+// 数据渲染函数
+function renderFields(container, data, skipKeys = []) {
+  if (!data || typeof data !== 'object') return;
+  for (const [k, v] of Object.entries(data)) {
+    if (skipKeys.includes(k)) continue;
+    if (v === null || v === undefined) continue;
+    const div = document.createElement('div');
+    div.className = 'json-field';
+    if (typeof v === 'object') {
+      div.innerHTML = `<span class="k">${k}:</span><div style="padding-left:12px">`;
+      renderFields(div.querySelector('div'), v);
+    } else if (Array.isArray(v)) {
+      div.innerHTML = `<span class="k">${k}:</span> ${v.map(x => typeof x === 'object' ? JSON.stringify(x) : x).join('; ')}`;
+    } else {
+      div.innerHTML = `<span class="k">${k}:</span> <span class="v">${v}</span>`;
+    }
+    container.appendChild(div);
+  }
+}
+</script>
+
+<!-- ==================== 页面 ==================== -->
+
+<div class="dc">
+  <div>
+    <span class="name">工商银行</span><span class="code">601398.SH · 2026-08-13</span><br>
+    <span class="badge">WATCH</span><span style="font-size:13px;color:rgba(255,255,255,.5);margin-left:8px">观望</span>
+  </div>
+  <div style="text-align:right">
+    <div class="score">49.6</div><div class="sl">综合评分</div>
+    <div class="pr">
+      <div class="pi"><div class="l">目标价</div><div class="v">8.16</div></div>
+      <div class="pi"><div class="l">止损价</div><div class="v">7.07</div></div>
+      <div class="pi"><div class="l">置信度</div><div class="v">62</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="sb">
+  <div class="sc2"><div class="ic" style="background:#FFF0F6;color:#C2255C">🐮</div><div><div class="n">11</div><div class="l">智能体</div></div></div>
+  <div class="sc2"><div class="ic" style="background:#FFF4E6;color:#E8590C">🗣️</div><div><div class="n">2轮</div><div class="l">多空辩论</div></div></div>
+  <div class="sc2"><div class="ic" style="background:#EDF2FF;color:#3B5BDB">📊</div><div><div class="n">7维</div><div class="l">评分拆解</div></div></div>
+  <div class="sc2"><div class="ic" style="background:#EBFBEE;color:#2F9E44">⏱️</div><div><div class="n">266s</div><div class="l">总耗时</div></div></div>
+</div>
+
+<!-- Phase 1 -->
+<div class="ph"><div class="pn">1</div><div><div class="pt">分析师团队</div><div class="ps">三面并行 · 各自独立出具报告</div></div></div>
+
+<div class="ar">
+  <!-- 技术分析师 -->
+  <div class="ac" data-agent="tech">
+    <div class="ah">
+      <div id="av-tech"></div>
+      <div><div class="an">技术分析师</div><div class="ar2">Technical Analyst</div></div>
+      <span class="st sdone">✓</span>
+    </div>
+    <div class="score2">58.2 <span style="font-size:12px;color:#868E96">neutral</span></div>
+    <div class="dlv">
+      <div class="t">核心交付物</div>
+      <ul>
+        <li><b>支撑/阻力:</b> 7.07 / 8.16 · <b>盈亏比:</b> 1:1.54</li>
+        <li><b>MACD:</b> 底背离 · <b>周线:</b> 多头区但动能转弱</li>
+        <li><b>资金:</b> 近5日净流入2亿，最新转流出</li>
+        <li><b>形态:</b> 晨星反转 + 十字星</li>
+      </ul>
+    </div>
+    <details class="exp"><summary>展开全部 37 字段 ▾</summary>
+      <div class="ct" id="tech-detail">
+        <div class="sub">— 趋势分析 —</div>
+        <div class="row"><span class="k">短期</span><span class="v">日线MACD底背离，反弹信号初现</span></div>
+        <div class="row"><span class="k">中期</span><span class="v">均线空头排列，20日跌幅-3.5%</span></div>
+        <div class="row"><span class="k">长期</span><span class="v">周线MACD仍多头(DIF>DEA>0)</span></div>
+        <div class="row"><span class="k">共振</span><span class="v">日线MACD死叉+KDJ超卖+RSI中性，信号分歧</span></div>
+        <div class="sub">— 关键价位 —</div>
+        <div class="row"><span class="k">强支撑</span><span class="v">7.07</span></div>
+        <div class="row"><span class="k">弱支撑</span><span class="v">7.31</span></div>
+        <div class="row"><span class="k">弱阻力</span><span class="v">7.65</span></div>
+        <div class="row"><span class="k">强阻力</span><span class="v">8.16</span></div>
+        <div class="row"><span class="k">目标价</span><span class="v">8.16</span></div>
+        <div class="row"><span class="k">止损价</span><span class="v">7.07 (ATR调整)</span></div>
+        <div class="row"><span class="k">做空止损</span><span class="v">7.65</span></div>
+        <div class="row"><span class="k">盈亏比</span><span class="v">1:1.54</span></div>
+        <div class="row"><span class="k">最新收盘</span><span class="v">7.51</span></div>
+        <div class="sub">— 场景分析 —</div>
+        <div class="row"><span class="k">牛场景</span><span class="v">目标 8.16 (概率60%) — 放量突破MA20企稳</span></div>
+        <div class="row"><span class="k">基准场景</span><span class="v">目标 7.35 (概率30%) — 震荡整理</span></div>
+        <div class="row"><span class="k">熊场景</span><span class="v">目标 6.95 (概率10%) — 跌破7.31双底失效</span></div>
+        <div class="sub">— 技术信号 —</div>
+        <div class="row"><span class="k">MACD</span><span class="v">signal: death_cross / divergence: bottom</span></div>
+        <div class="row"><span class="k">KDJ</span><span class="v">signal: neutral / divergence: none</span></div>
+        <div class="row"><span class="k">RSI</span><span class="v">signal: neutral / divergence: none</span></div>
+        <div class="row"><span class="k">均线形态</span><span class="v">bearish_alignment (空头排列)</span></div>
+        <div class="row"><span class="k">K线形态</span><span class="v">晨星(08-03) / 十字星(07-31) / 三只乌鸦(07-30)</span></div>
+        <div class="sub">— 量价资金 —</div>
+        <div class="row"><span class="k">量能</span><span class="v">温和放量(量比1.15)</span></div>
+        <div class="row"><span class="k">换手</span><span class="v">低换手 0.15%</span></div>
+        <div class="row"><span class="k">资金流</span><span class="v">近5日净流入+20056万，最新转流出-40677万</span></div>
+        <div class="row"><span class="k">相对强度</span><span class="v">跑输大盘 -2.3%</span></div>
+        <div class="row"><span class="k">周线信号</span><span class="v">MACD多头，但最新收大阴线-5.76%动能转弱</span></div>
+        <div class="sub">— 风险 —</div>
+        <div class="row"><span class="k">失败条件</span><span class="v">放量跌破7.31(MA120)和7.21(Fibonacci 0.786)</span></div>
+        <div class="sub">— 评分 —</div>
+        <div class="row"><span class="k">scoring_breakdown</span><span class="v">trend_ma:0 / trend_macd:3 / trend_price:0 / signal_macd:0 / signal_kdj:7 / signal_rsi:5 / volume_price:7 / volume_turnover:3 / relative_vs_index:0 / pattern:7 / risk_reward:3</span></div>
+      </div>
+    </details>
+  </div>
+
+  <!-- 基本面分析师 -->
+  <div class="ac" data-agent="fund">
+    <div class="ah">
+      <div id="av-fund"></div>
+      <div><div class="an">基本面分析师</div><div class="ar2">Fundamentals Analyst</div></div>
+      <span class="st sdone">✓</span>
+    </div>
+    <div class="score2">55.0 <span style="font-size:12px;color:#868E96">neutral</span></div>
+    <div class="dlv">
+      <div class="t">核心交付物</div>
+      <ul>
+        <li><b>PE 7.27</b> 历史3%分位 · <b>OCF 16.29</b></li>
+        <li><b>DCF:</b> 内在 9.85，低估18%</li>
+        <li><b>股息 5.2%</b> · <b>ROE 11.2%</b></li>
+        <li><b>insider:</b> neutral · <b>估值:</b> undervalued</li>
+      </ul>
+    </div>
+    <details class="exp"><summary>展开全部 60 字段 ▾</summary>
+      <div class="ct">
+        <div class="sub">— 估值 —</div>
+        <div class="row"><span class="k">PE(TTM)</span><span class="v">7.27 (历史3%分位)</span></div>
+        <div class="row"><span class="k">PB</span><span class="v">0.65 (历史1%分位)</span></div>
+        <div class="row"><span class="k">PE vs 行业</span><span class="v">行业均值 8.5，折价 14%</span></div>
+        <div class="row"><span class="k">估值判定</span><span class="v">undervalued</span></div>
+        <div class="row"><span class="k">估值概述</span><span class="v">五大行最低估值之一，PB破净</span></div>
+        <div class="sub">— DCF —</div>
+        <div class="row"><span class="k">内在价值</span><span class="v">9.85 元 (当前 7.51，低估 18%)</span></div>
+        <div class="row"><span class="k">PE vs DCF</span><span class="v">两种方法交叉验证低估</span></div>
+        <div class="row"><span class="k">敏感性</span><span class="v">增速减半则内在价值降至 7.20</span></div>
+        <div class="sub">— 场景分析 —</div>
+        <div class="row"><span class="k">乐观</span><span class="v">9.20 — 估值修复至行业均值</span></div>
+        <div class="row"><span class="k">中性</span><span class="v">7.60 — 维持当前估值</span></div>
+        <div class="row"><span class="k">悲观</span><span class="v">6.30 — 净息差进一步收窄</span></div>
+        <div class="sub">— 财务健康 —</div>
+        <div class="row"><span class="k">净利率</span><span class="v">38.2%</span></div>
+        <div class="row"><span class="k">ROE(最新)</span><span class="v">11.2%</span></div>
+        <div class="row"><span class="k">ROE(年均)</span><span class="v">12.1%</span></div>
+        <div class="row"><span class="k">营收增速</span><span class="v">+2.1%</span></div>
+        <div class="row"><span class="k">净利增速</span><span class="v">+1.5%</span></div>
+        <div class="row"><span class="k">OCF/NP</span><span class="v">16.29 (极高)</span></div>
+        <div class="row"><span class="k">FCF利润率</span><span class="v">42%</span></div>
+        <div class="row"><span class="k">有息负债</span><span class="v">0 (零)</span></div>
+        <div class="row"><span class="k">现金流类型</span><span class="v">healthy</span></div>
+        <div class="sub">— 杜邦分析 —</div>
+        <div class="row"><span class="k">净利率</span><span class="v">38.2%</span></div>
+        <div class="row"><span class="k">资产周转率</span><span class="v">0.03次</span></div>
+        <div class="row"><span class="k">权益乘数</span><span class="v">8.5倍</span></div>
+        <div class="sub">— 股东结构 —</div>
+        <div class="row"><span class="k">insider信号</span><span class="v">neutral</span></div>
+        <div class="row"><span class="k">insider详情</span><span class="v">机构持仓无显著变化</span></div>
+        <div class="row"><span class="k">机构比例</span><span class="v">35.2%</span></div>
+        <div class="row"><span class="k">机构数</span><span class="v">142家</span></div>
+        <div class="row"><span class="k">股东趋势</span><span class="v">stable</span></div>
+        <div class="row"><span class="k">质押风险</span><span class="v">无</span></div>
+        <div class="sub">— 核心优势/风险 —</div>
+        <div class="row"><span class="k">优势1</span><span class="v">全球资产规模最大银行</span></div>
+        <div class="row"><span class="k">优势2</span><span class="v">零有息负债，抗风险能力极强</span></div>
+        <div class="row"><span class="k">优势3</span><span class="v">OCF 16倍，利润含金量极高</span></div>
+        <div class="row"><span class="k">优势4</span><span class="v">股息率5.2%类债券</span></div>
+        <div class="row"><span class="k">风险1</span><span class="v">净利增速停滞(+1.5%)</span></div>
+        <div class="row"><span class="k">风险2</span><span class="v">利率下行压缩息差</span></div>
+        <div class="row"><span class="k">风险3</span><span class="v">insider未增持</span></div>
+        <div class="sub">— 跟踪指标 —</div>
+        <div class="row"><span class="k">跟踪1</span><span class="v">ROE ≥ 11% 维持</span></div>
+        <div class="row"><span class="k">跟踪2</span><span class="v">营收增速 ≥ 3% 回升</span></div>
+        <div class="row"><span class="k">跟踪3</span><span class="v">PE 分位 ≤ 10%</span></div>
+        <div class="row"><span class="k">跟踪4</span><span class="v">OCF/NP ≥ 10</span></div>
+        <div class="row"><span class="k">跟踪5</span><span class="v">高管增减持变化</span></div>
+        <div class="sub">— 治理 —</div>
+        <div class="row"><span class="k">governance</span><span class="v">clean</span></div>
+        <div class="row"><span class="k">治理事件</span><span class="v">无</span></div>
+      </div>
+    </details>
+  </div>
+
+  <!-- 新闻分析师 -->
+  <div class="ac" data-agent="news">
+    <div class="ah">
+      <div id="av-news"></div>
+      <div><div class="an">新闻分析师</div><div class="ar2">News Analyst</div></div>
+      <span class="st sdone">✓</span>
+    </div>
+    <div class="score2">69 <span style="font-size:12px;color:#868E96">bullish</span></div>
+    <div class="dlv">
+      <div class="t">核心交付物</div>
+      <ul>
+        <li><b>情绪:</b> positive (75%)</li>
+        <li><b>事件:</b> 估值修复+分红落地+利率改善</li>
+        <li><b>正面3条</b> / 负面1条</li>
+      </ul>
+    </div>
+    <details class="exp"><summary>展开全部 15 字段 ▾</summary>
+      <div class="ct">
+        <div class="sub">— 事件 —</div>
+        <div class="row"><span class="k">事件1(正面)</span><span class="v">大行估值修复预期增强 — 影响高</span></div>
+        <div class="row"><span class="k">事件2(正面)</span><span class="v">分红方案落地 — 影响中</span></div>
+        <div class="row"><span class="k">事件3(正面)</span><span class="v">利率政策边际改善 — 影响中</span></div>
+        <div class="row"><span class="k">风险事件</span><span class="v">无重大利空</span></div>
+        <div class="sub">— 情绪 —</div>
+        <div class="row"><span class="k">情绪</span><span class="v">positive</span></div>
+        <div class="row"><span class="k">置信度</span><span class="v">0.75</span></div>
+        <div class="row"><span class="k">分析条数</span><span class="v">20条</span></div>
+        <div class="sub">— 因素 —</div>
+        <div class="row"><span class="k">正面因素</span><span class="v">①估值修复 ②高股息 ③政策利好</span></div>
+        <div class="row"><span class="k">负面因素</span><span class="v">①息差收窄预期仍存</span></div>
+        <div class="sub">— 观察/失效 —</div>
+        <div class="row"><span class="k">关键观察</span><span class="v">大行估值修复预期增强</span></div>
+        <div class="row"><span class="k">失效条件</span><span class="v">①利率大幅下调 ②不良率上升</span></div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 2 -->
+<div class="ph"><div class="pn">2</div><div><div class="pt">多空辩论</div><div class="ps">2轮对抗 · 接收三份报告</div></div></div>
+
+<div class="db">
+  <div class="dbs">
+    <div class="ac bc">
+      <div class="ah"><div id="av-bull"></div><div><div class="an">看多辩手</div><div class="ar2">Bull Debater</div></div></div>
+      <div class="dlv"><div class="t">R1 立论</div><ul>
+        <li>PE 7.27 历史3%分位，极度低估</li>
+        <li>股息率5.2%超银行理财</li>
+        <li>OCF 16.29倍，利润含金量极高</li>
+      </ul></div>
+      <div class="dlv" style="margin-top:8px"><div class="t">R2 反驳</div><ul>
+        <li>增速虽降但绝对值稳定，已price in</li>
+        <li>五大行估值修复是全球趋势</li>
+      </ul></div>
+      <details class="exp"><summary>展开完整辩论 ▾</summary>
+        <div class="ct">R1: 估值极低+零有息负债+高股息+OCF 16倍<br><br>R2 反驳看空: 增速虽降但绝对值稳定，低增速已在PE中反映。A/H溢价收敛是全球趋势。分红率稳定30%。</div>
+      </details>
+    </div>
+  </div>
+  <div class="vs"><div class="vsb">VS</div></div>
+  <div class="dbs">
+    <div class="ac bc2">
+      <div class="ah"><div id="av-bear"></div><div><div class="an">看空辩手</div><div class="ar2">Bear Debater</div></div></div>
+      <div class="dlv"><div class="t">R1 立论</div><ul>
+        <li>净利增速仅+1.5%，接近停滞</li>
+        <li>insider=neutral，机构未增持</li>
+        <li>利率下行周期息差持续收窄</li>
+      </ul></div>
+      <div class="dlv" style="margin-top:8px"><div class="t">R2 反驳</div><ul>
+        <li>低PE是合理定价非错杀</li>
+        <li>无催化剂，估值修复缺乏动力</li>
+      </ul></div>
+      <details class="exp"><summary>展开完整辩论 ▾</summary>
+        <div class="ct">R1: 利率下行→息差收窄→利润承压。ROE从13%降至11.2%。<br><br>R2 反驳看多: 低PE反映市场对增速的合理定价。需息差企稳信号才值得配置。</div>
+      </details>
+    </div>
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 3 -->
+<div class="ph"><div class="pn">3</div><div><div class="pt">研究经理</div><div class="ps">接收：三份报告+完整辩论+新闻面</div></div></div>
+
+<div class="ar">
+  <div class="ac" style="max-width:650px">
+    <div class="ah"><div id="av-rm"></div><div><div class="an">研究经理</div><div class="ar2">Research Manager</div></div><span class="st sdone">✓</span></div>
+    <div style="display:flex;gap:24px;margin:8px 0">
+      <div><div class="score2">49.6</div><div style="font-size:11px;color:#868E96">调整后分数</div></div>
+      <div><div style="font-size:24px;font-weight:800;color:#2B8A3E">bear胜</div><div style="font-size:11px;color:#868E96">delta -3</div></div>
+      <div><div style="font-size:24px;font-weight:800">neutral</div><div style="font-size:11px;color:#868E96">方向</div></div>
+    </div>
+    <div class="dlv"><div class="t">评判理由</div><ul>
+      <li>"看空方成功论证利率下行对息差的持续挤压"</li>
+      <li>"看多方虽指出极低估值，但缺乏增长催化剂"</li>
+    </ul></div>
+    <div class="dlv" style="margin-top:8px"><div class="t">最强论点</div><ul>
+      <li><b style="color:#E03131">看多:</b> "PE历史3%分位+5.2%股息"</li>
+      <li><b style="color:#2B8A3E">看空:</b> "增速1.5%停滞，低PE是合理定价"</li>
+    </ul></div>
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 4-5 -->
+<div class="ph"><div class="pn">4-5</div><div><div class="pt">风险辩论 + 风险经理</div><div class="ps">三方辩论 · 风险经理汇总</div></div></div>
+
+<div class="ar" style="margin-bottom:12px">
+  <div class="ac" style="border-top:3px solid #FF6B35;min-width:260px">
+    <div class="ah"><div id="av-aggr"></div><div><div class="an" style="font-size:13px">激进方</div></div></div>
+    <div class="dlv"><ul><li>PE 7.27 vs DCF 9.85，低估18%</li><li>五大行系统性估值修复是确定性事件</li><li>跌了就是机会，逢低配置</li></ul></div>
+  </div>
+  <div class="ac" style="border-top:3px solid #868E96;min-width:260px">
+    <div class="ah"><div id="av-neu"></div><div><div class="an" style="font-size:13px">中性方</div></div></div>
+    <div class="dlv"><ul><li>低估值但缺催化剂</li><li>适合底仓配置，不宜重仓</li><li>等息差企稳或insider转净买</li></ul></div>
+  </div>
+  <div class="ac" style="border-top:3px solid #3B5BDB;min-width:260px">
+    <div class="ah"><div id="av-cons"></div><div><div class="an" style="font-size:13px">保守方</div></div></div>
+    <div class="dlv"><ul><li>利率下行远未结束，息差持续承压</li><li>ROE趋势向下(13%→11.2%)</li><li>insider未增持=内部人不看好</li></ul></div>
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<div class="ar">
+  <div class="ac" style="max-width:650px">
+    <div class="ah"><div id="av-riskmgr"></div><div><div class="an">风险经理</div><div class="ar2">Risk Manager</div></div><span class="st sdone">✓</span></div>
+    <div style="display:flex;gap:24px;margin:8px 0">
+      <div><div style="font-size:24px;font-weight:800;color:#E03131">high</div><div style="font-size:11px;color:#868E96">风险等级</div></div>
+      <div><div style="font-size:24px;font-weight:800">68</div><div style="font-size:11px;color:#868E96">风险评分</div></div>
+      <div><div style="font-size:24px;font-weight:800">standard</div><div style="font-size:11px;color:#868E96">仓位建议</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 6 -->
+<div class="ph"><div class="pn">6</div><div><div class="pt">交易员最终决策</div><div class="ps">接收全部信息</div></div></div>
+
+<div class="tc">
+  <div class="th">
+    <div id="av-trader" style="width:72px;height:72px"></div>
+    <div><div style="font-size:18px;font-weight:700">交易员</div><div style="font-size:12px;color:#868E96">Trader</div></div>
+    <span class="st sdone" style="margin-left:auto">✓ 266s</span>
+  </div>
+
+  <div class="tm">
+    <div class="mb"><div class="l">决策</div><div class="v">WATCH</div></div>
+    <div class="mb"><div class="l">目标价</div><div class="v">8.16</div></div>
+    <div class="mb"><div class="l">止损价</div><div class="v">7.07</div></div>
+    <div class="mb"><div class="l">置信度</div><div class="v">62</div></div>
+    <div class="mb"><div class="l">仓位</div><div class="v">40-70%</div></div>
+    <div class="mb"><div class="l">时间</div><div class="v">1-3月</div></div>
+  </div>
+
+  <div style="margin-top:14px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:6px">▸ 分批止盈</div>
+    <div style="display:flex;gap:8px">
+      <div style="flex:1;background:#fff;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:#868E96">目标1</div><div style="font-size:16px;font-weight:700;color:#2F9E44">7.60</div><div style="font-size:11px;color:#868E96">减30%</div></div>
+      <div style="flex:1;background:#fff;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:#868E96">目标2</div><div style="font-size:16px;font-weight:700;color:#F59F00">8.16</div><div style="font-size:11px;color:#868E96">减40%</div></div>
+      <div style="flex:1;background:#fff;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:#868E96">目标3</div><div style="font-size:16px;font-weight:700;color:#E03131">9.20</div><div style="font-size:11px;color:#868E96">清30%</div></div>
+    </div>
+  </div>
+
+  <div class="el"><div class="t">▸ 催化剂</div><ul><li>利率政策边际改善</li><li>insider转net_buy</li><li>净息差企稳</li></ul></div>
+  <div class="el"><div class="t">▸ 入场条件</div><ul><li>放量站稳MA10(7.35)3日</li><li>MACD绿转红底背离确认</li><li>insider转net_buy</li></ul></div>
+
+  <details class="exp"><summary>展开完整推理+风险+置信度+26字段 ▾</summary>
+    <div class="ct" style="max-height:none">
+      <p style="margin-bottom:8px"><b>决策推理：</b>综合49.6分中性偏空。PE低估+OCF极好+股息高，但insider=neutral+增速停滞+息差收窄。看空胜(-3)。风险high。观望。</p>
+      <p style="margin-bottom:4px"><b>目标价理由：</b>技术面弱阻力8.16(MA20/布林中轨)</p>
+      <p style="margin-bottom:4px"><b>止损价理由：</b>技术面止损7.07(强支撑上方)</p>
+      <p style="margin:8px 0 4px"><b>风险提示：</b></p>
+      <ul><li>利率下行息差收窄</li><li>增速停滞</li><li>无增量资金</li></ul>
+      <p style="margin:8px 0 4px"><b>置信度5维拆解(62/100)：</b></p>
+      <div class="tp-row"><span style="width:80px;font-size:11px">信号一致</span><div class="tp-bar"><div class="tp-fill" style="width:80%;background:#4C6EF5"></div></div><span style="font-size:11px">16/20</span></div>
+      <div class="tp-row"><span style="width:80px;font-size:11px">数据充分</span><div class="tp-bar"><div class="tp-fill" style="width:85%;background:#2F9E44"></div></div><span style="font-size:11px">17/20</span></div>
+      <div class="tp-row"><span style="width:80px;font-size:11px">辩论确定</span><div class="tp-bar"><div class="tp-fill" style="width:55%;background:#F59F00"></div></div><span style="font-size:11px">11/20</span></div>
+      <div class="tp-row"><span style="width:80px;font-size:11px">风控可控</span><div class="tp-bar"><div class="tp-fill" style="width:60%;background:#E8590C"></div></div><span style="font-size:11px">12/20</span></div>
+      <div class="tp-row"><span style="width:80px;font-size:11px">估值合理</span><div class="tp-bar"><div class="tp-fill" style="width:60%;background:#9C36B5"></div></div><span style="font-size:11px">12/20</span></div>
+    </div>
+  </details>
+</div>
+
+<div style="text-align:center;padding:20px;color:#868E96;font-size:12px">11 agents · 6 phases · 266s</div>
+
+<script>
+// 初始化所有头像
+document.querySelectorAll('[id^="av-"]').forEach(el => {
+  const role = el.id.replace('av-', '');
+  el.appendChild(createAvatar(role));
+});
+</script>
+</body>
+</html>

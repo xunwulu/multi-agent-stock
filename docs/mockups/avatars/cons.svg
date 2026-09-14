@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <circle cx="100" cy="100" r="100" fill="#FDEBD2"/>
+  <path d="M38 62 Q28 30 58 34 Q50 52 62 66 Z" fill="#F5C542" stroke="#E0A82E" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M162 62 Q172 30 142 34 Q150 52 138 66 Z" fill="#F5C542" stroke="#E0A82E" stroke-width="3" stroke-linejoin="round"/>
+  <ellipse cx="24" cy="98" rx="18" ry="12" fill="#8A5A3B" transform="rotate(-20 24 98)"/>
+  <ellipse cx="24" cy="98" rx="10" ry="6" fill="#E8A87C" transform="rotate(-20 24 98)"/>
+  <ellipse cx="176" cy="98" rx="18" ry="12" fill="#8A5A3B" transform="rotate(20 176 98)"/>
+  <ellipse cx="176" cy="98" rx="10" ry="6" fill="#E8A87C" transform="rotate(20 176 98)"/>
+  <ellipse cx="100" cy="106" rx="62" ry="58" fill="#8A5A3B"/>
+  <path d="M52 62 Q70 44 100 42 Q130 44 148 62 Q120 54 100 54 Q80 54 52 62 Z" fill="#6E4630"/>
+  <path d="M78 40 Q70 34 74 26 Q80 20 86 26 Q88 34 84 40 Z" fill="#A06A45"/>
+  <path d="M122 40 Q130 34 126 26 Q120 20 114 26 Q112 34 116 40 Z" fill="#A06A45"/>
+  <ellipse cx="78" cy="98" rx="11" ry="14" fill="#FFFFFF"/>
+  <ellipse cx="122" cy="98" rx="11" ry="14" fill="#FFFFFF"/>
+  <circle cx="79" cy="100" r="7" fill="#2B1B12"/>
+  <circle cx="121" cy="100" r="7" fill="#2B1B12"/>
+  <circle cx="82" cy="96" r="2.5" fill="#FFFFFF"/>
+  <circle cx="124" cy="96" r="2.5" fill="#FFFFFF"/>
+  <path d="M64 82 Q72 76 82 80" fill="none" stroke="#4A2E1E" stroke-width="4" stroke-linecap="round"/>
+  <path d="M136 82 Q128 76 118 80" fill="none" stroke="#4A2E1E" stroke-width="4" stroke-linecap="round"/>
+  <ellipse cx="100" cy="132" rx="22" ry="16" fill="#E8A87C"/>
+  <ellipse cx="91" cy="132" rx="4.5" ry="6.5" fill="#5C3A25"/>
+  <ellipse cx="109" cy="132" rx="4.5" ry="6.5" fill="#5C3A25"/>
+  <path d="M93 145 Q100 150 107 145" fill="none" stroke="#5C3A25" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="100" cy="128" rx="9" ry="5" fill="#F2C29B"/>
+  <path d="M62 156 Q100 172 138 156 L150 168 Q100 186 50 168 Z" fill="#8A5A3B"/>
+  <rect x="76" y="160" width="48" height="44" rx="8" fill="#3E8ED0" stroke="#2C6FAE" stroke-width="3"/>
+  <path d="M100 166 L112 172 V186 Q112 196 100 200 Q88 196 88 186 V172 Z" fill="#5AA9E6"/>
+  <path d="M100 172 L106 175 V186 Q106 192 100 195 Q94 192 94 186 V175 Z" fill="#8CC7F0"/>
+  <rect x="88" y="160" width="24" height="5" rx="2" fill="#2C6FAE"/>
+</svg>

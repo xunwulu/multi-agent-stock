@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="95" fill="#FDF3E3"/>
+  <!-- Cape -->
+  <path d="M50 105 Q30 150 45 175 Q70 160 100 175 Q130 160 155 175 Q170 150 150 105 Z" fill="#E63946"/>
+  <path d="M100 170 L100 100 L150 105 Q170 150 155 175 Q130 160 100 170 Z" fill="#C42B37"/>
+  <!-- Ears -->
+  <ellipse cx="32" cy="98" rx="16" ry="11" fill="#A9503C" transform="rotate(-15 32 98)"/>
+  <ellipse cx="168" cy="98" rx="16" ry="11" fill="#A9503C" transform="rotate(15 168 98)"/>
+  <ellipse cx="32" cy="98" rx="9" ry="6" fill="#E58B6F" transform="rotate(-15 32 98)"/>
+  <ellipse cx="168" cy="98" rx="9" ry="6" fill="#E58B6F" transform="rotate(15 168 98)"/>
+  <!-- Horns -->
+  <path d="M62 55 Q50 35 62 22 Q72 35 72 52 Z" fill="#F4E3C1"/>
+  <path d="M138 55 Q150 35 138 22 Q128 35 128 52 Z" fill="#F4E3C1"/>
+  <!-- Head -->
+  <path d="M100 30 C145 30 170 65 170 105 C170 145 140 172 100 172 C60 172 30 145 30 105 C30 65 55 30 100 30 Z" fill="#B85C42"/>
+  <!-- Forehead patch -->
+  <path d="M100 30 C130 30 152 50 163 78 C140 92 60 92 37 78 C48 50 70 30 100 30 Z" fill="#C96A4E"/>
+  <!-- Hair tuft -->
+  <path d="M88 32 Q92 18 100 28 Q104 14 112 30 Q118 24 118 34 Q108 40 92 38 Z" fill="#8A3B2A"/>
+  <!-- Eyes -->
+  <ellipse cx="72" cy="98" rx="13" ry="16" fill="#2B2B2B"/>
+  <ellipse cx="128" cy="98" rx="13" ry="16" fill="#2B2B2B"/>
+  <circle cx="76" cy="92" r="5" fill="#FFFFFF"/>
+  <circle cx="132" cy="92" r="5" fill="#FFFFFF"/>
+  <circle cx="68" cy="103" r="2.5" fill="#FFFFFF"/>
+  <circle cx="124" cy="103" r="2.5" fill="#FFFFFF"/>
+  <!-- Angry brows -->
+  <path d="M55 76 L88 86" stroke="#7C3524" stroke-width="7" stroke-linecap="round"/>
+  <path d="M145 76 L112 86" stroke="#7C3524" stroke-width="7" stroke-linecap="round"/>
+  <!-- Muzzle -->
+  <ellipse cx="100" cy="136" rx="34" ry="24" fill="#E8B08A"/>
+  <!-- Nostrils -->
+  <ellipse cx="88" cy="133" rx="5.5" ry="7.5" fill="#8A4A32"/>
+  <ellipse cx="112" cy="133" rx="5.5" ry="7.5" fill="#8A4A32"/>
+  <!-- Determined smile -->
+  <path d="M88 151 Q100 158 112 151" stroke="#7C3524" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <!-- Arrow up -->
+  <path d="M176 120 L176 72" stroke="#2A9D8F" stroke-width="7" stroke-linecap="round"/>
+  <path d="M176 58 L164 76 L188 76 Z" fill="#2A9D8F"/>
+  <!-- Cape collar -->
+  <path d="M70 52 Q100 68 130 52 Q135 60 130 66 Q100 80 70 66 Q65 60 70 52 Z" fill="#C42B37"/>
+</svg>

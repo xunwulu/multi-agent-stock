@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="96" fill="#FDF1DC"/>
+  <!-- Ears -->
+  <ellipse cx="26" cy="92" rx="18" ry="12" fill="#F5C542" transform="rotate(-20 26 92)"/>
+  <ellipse cx="174" cy="92" rx="18" ry="12" fill="#F5C542" transform="rotate(20 174 92)"/>
+  <ellipse cx="26" cy="92" rx="10" ry="6" fill="#FBE08E" transform="rotate(-20 26 92)"/>
+  <ellipse cx="174" cy="92" rx="10" ry="6" fill="#FBE08E" transform="rotate(20 174 92)"/>
+  <!-- Horns -->
+  <path d="M62 38 Q50 20 68 14 Q80 12 82 28 Q74 30 70 42 Z" fill="#F0E2C0"/>
+  <path d="M138 38 Q150 20 132 14 Q120 12 118 28 Q126 30 130 42 Z" fill="#F0E2C0"/>
+  <!-- Head -->
+  <ellipse cx="100" cy="105" rx="62" ry="58" fill="#F5C542"/>
+  <!-- Hair tuft -->
+  <path d="M88 48 Q100 38 112 48 Q106 44 100 50 Q96 42 88 48 Z" fill="#E8A82E"/>
+  <!-- Glasses -->
+  <circle cx="74" cy="100" r="24" fill="#FFFFFF" stroke="#3D7BD9" stroke-width="6"/>
+  <circle cx="126" cy="100" r="24" fill="#FFFFFF" stroke="#3D7BD9" stroke-width="6"/>
+  <line x1="98" y1="100" x2="102" y2="100" stroke="#3D7BD9" stroke-width="6"/>
+  <line x1="50" y1="96" x2="40" y2="90" stroke="#3D7BD9" stroke-width="6" stroke-linecap="round"/>
+  <line x1="150" y1="96" x2="160" y2="90" stroke="#3D7BD9" stroke-width="6" stroke-linecap="round"/>
+  <!-- Eyes -->
+  <circle cx="74" cy="101" r="9" fill="#3A2E2A"/>
+  <circle cx="126" cy="101" r="9" fill="#3A2E2A"/>
+  <circle cx="77" cy="98" r="3" fill="#FFFFFF"/>
+  <circle cx="129" cy="98" r="3" fill="#FFFFFF"/>
+  <circle cx="71" cy="104" r="1.5" fill="#FFFFFF"/>
+  <circle cx="123" cy="104" r="1.5" fill="#FFFFFF"/>
+  <!-- Snout -->
+  <ellipse cx="100" cy="140" rx="34" ry="24" fill="#FBE08E"/>
+  <ellipse cx="89" cy="140" rx="6" ry="9" fill="#C98A4B"/>
+  <ellipse cx="111" cy="140" rx="6" ry="9" fill="#C98A4B"/>
+  <path d="M92 156 Q100 161 108 156" fill="none" stroke="#C98A4B" stroke-width="3" stroke-linecap="round"/>
+  <!-- Blush -->
+  <ellipse cx="52" cy="128" rx="8" ry="5" fill="#F2A65A" opacity="0.6"/>
+  <ellipse cx="148" cy="128" rx="8" ry="5" fill="#F2A65A" opacity="0.6"/>
+  <!-- Floating chart icon -->
+  <rect x="152" y="38" width="40" height="36" rx="6" fill="#FFFFFF" stroke="#3D7BD9" stroke-width="3"/>
+  <rect x="158" y="56" width="6" height="12" fill="#3D7BD9"/>
+  <rect x="168" y="48" width="6" height="20" fill="#E8543D"/>
+  <rect x="178" y="52" width="6" height="16" fill="#4CAF6E"/>
+</svg>

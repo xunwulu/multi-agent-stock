@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI分析 Demo v4</title>
+<style>
+:root{--pri:#E8590C;--bg:#FAFAFA;--card:#FFF;--tx:#1A1A2E;--tx2:#868E96;--bd:#E9ECEF;--ok:#2F9E44;--warn:#F59F00;--danger:#E03131}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"PingFang SC","Segoe UI",sans-serif;background:var(--bg);color:var(--tx);line-height:1.6;padding:20px;max-width:1100px;margin:0 auto}
+
+.dc{background:linear-gradient(135deg,#1A1A2E,#16213E);border-radius:16px;padding:28px 32px;color:#fff;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+.dc .name{font-size:22px;font-weight:700}.dc .code{font-size:14px;color:rgba(255,255,255,.6);margin-left:8px}
+.dc .badge{display:inline-block;background:var(--warn);color:#1A1A2E;font-size:28px;font-weight:800;padding:6px 20px;border-radius:10px;margin-top:10px;letter-spacing:2px}
+.dc .score{font-size:48px;font-weight:800;color:var(--warn)}.dc .sl{font-size:12px;color:rgba(255,255,255,.5)}
+.pr{display:flex;gap:24px;margin-top:12px}.pi{text-align:center}.pi .l{font-size:11px;color:rgba(255,255,255,.5)}.pi .v{font-size:18px;font-weight:700}
+
+.sb{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+.stat{flex:1;min-width:100px;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px}
+.stat .n{font-size:20px;font-weight:700}.stat .l{font-size:11px;color:var(--tx2)}
+
+.ph{display:flex;align-items:center;gap:12px;margin:32px 0 16px}
+.pn{width:32px;height:32px;border-radius:50%;background:var(--pri);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+.pt{font-size:16px;font-weight:700}.ps{font-size:12px;color:var(--tx2)}
+
+.ar{display:flex;gap:14px;flex-wrap:wrap}
+.ac{flex:1;min-width:300px;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.04);transition:box-shadow .2s}
+.ac:hover{box-shadow:0 4px 14px rgba(0,0,0,.08)}
+
+.ah{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.ah img{width:56px;height:56px;border-radius:50%;border:3px solid var(--bd);flex-shrink:0}
+.an{font-size:15px;font-weight:700}.ar2{font-size:11px;color:var(--tx2)}
+.st{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-left:auto}
+.sdone{background:#D3F9D8;color:var(--ok)}
+
+.sc{font-size:24px;font-weight:800;margin-bottom:4px}
+.sc small{font-size:12px;color:var(--tx2);font-weight:400;margin-left:4px}
+
+/* 迷你可视化 */
+.viz{margin:10px 0}
+.viz-row{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px;color:var(--tx2)}
+.viz-row .lbl{width:60px;flex-shrink:0;font-size:11px;text-align:right}
+.bar-bg{flex:1;height:8px;border-radius:4px;background:#E9ECEF;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:4px;transition:width .3s}
+.range-bar{flex:1;height:6px;border-radius:3px;background:linear-gradient(90deg,#D3F9D8 0%,#FFF3BF 50%,#FFE3E3 100%);position:relative;margin:0 8px}
+.range-dot{position:absolute;top:-4px;width:14px;height:14px;border-radius:50%;background:var(--tx);border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transform:translateX(-50%)}
+.range-mark{position:absolute;top:-8px;font-size:10px;color:var(--tx2);transform:translateX(-50%)}
+
+.flow{display:flex;gap:12px;margin:6px 0;font-size:12px}
+.flow-item{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px}
+.flow-up{background:#EBFBEE;color:var(--ok)}
+.flow-dn{background:#FFEBEB;color:var(--danger)}
+
+.dlv{background:#F8F9FA;border-radius:8px;padding:10px 12px;font-size:12px;color:var(--tx2);margin-top:8px}
+.dlv .t{font-weight:700;color:var(--tx);margin-bottom:4px;font-size:11px}
+.dlv ul{list-style:none;padding:0}.dlv li{padding:2px 0;display:flex;gap:6px}
+.dlv li::before{content:'▸';color:var(--pri)}
+
+details.exp{margin-top:10px}
+details.exp summary{cursor:pointer;font-size:12px;color:var(--pri);font-weight:600;user-select:none}
+details.exp summary:hover{text-decoration:underline}
+
+/* 展开详情卡片网格 */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:8px}
+.gcard{background:#fff;border:1px solid var(--bd);border-radius:8px;padding:10px}
+.gcard .gt{font-size:10px;font-weight:700;color:var(--tx);text-transform:uppercase;margin-bottom:4px;border-bottom:1px solid var(--bd);padding-bottom:2px}
+.gcard .gv{font-size:13px;font-weight:600;color:#495057}
+.gcard .gv.good{color:var(--ok)}.gcard .gv.bad{color:var(--danger)}.gcard .gv.warn{color:var(--warn)}
+.gcard .gs{font-size:10px;color:var(--tx2)}
+
+.cn{display:flex;justify-content:center;padding:8px 0}
+.cn .ln{width:2px;height:24px;background:#DEE2E6;position:relative}
+.cn .ln::after{content:'';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top:7px solid #DEE2E6}
+
+/* 辩论对话流 */
+.chat{max-width:700px;margin:0 auto}
+.bubble{max-width:75%;padding:12px 16px;border-radius:16px;margin:8px 0;font-size:13px;line-height:1.5;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.bull-b{background:#FFEBEB;border:1px solid #FFC9C9;border-bottom-left-radius:4px;margin-right:auto}
+.bear-b{background:#E9FAE5;border:1px solid #C3E6C3;border-bottom-right-radius:4px;margin-left:auto}
+.bubble .who{font-size:11px;font-weight:700;margin-bottom:4px}
+.bull-b .who{color:#C2255C}.bear-b .who{color:#1F7A32}
+.round-tag{text-align:center;font-size:11px;color:var(--tx2);margin:12px 0;background:#F8F9FA;border-radius:12px;padding:2px 12px;display:inline-block}
+.round-tag-wrap{text-align:center}
+
+.tc{background:linear-gradient(135deg,#FFF8E1,#FFF4E6);border:2px solid var(--pri);border-radius:14px;padding:24px;margin-top:8px}
+.th{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.th img{width:72px;height:72px;border-radius:50%;border:3px solid var(--pri)}
+.tm{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.mb{background:#fff;border-radius:8px;padding:10px 14px;text-align:center}
+.mb .l{font-size:11px;color:var(--tx2)}.mb .v{font-size:18px;font-weight:700;color:var(--pri)}
+.el{margin-top:14px}.el .t{font-size:13px;font-weight:700;margin-bottom:6px}
+.el ul{list-style:none;padding:0}.el li{font-size:12px;color:var(--tx2);padding:3px 0 3px 16px;position:relative}
+.el li::before{content:'▸';position:absolute;left:0;color:var(--pri)}
+.tp-row{display:flex;gap:8px;margin:4px 0;align-items:center;font-size:11px}
+.tp-bar{flex:1;height:6px;border-radius:3px;background:#E9ECEF;overflow:hidden}
+.tp-fill{height:100%;border-radius:3px}
+
+/* 三方风险 */
+.risk3{display:flex;gap:10px;margin-bottom:14px}
+.rk{flex:1;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;text-align:center}
+.rk img{width:44px;height:44px;border-radius:50%;margin-bottom:6px}
+.rk .rn{font-size:12px;font-weight:700;margin-bottom:4px}
+.rk .rv{font-size:11px;color:var(--tx2);padding:2px 6px}
+</style>
+</head>
+<body>
+
+<!-- 决策卡 -->
+<div class="dc">
+  <div>
+    <span class="name">工商银行</span><span class="code">601398.SH · 2026-08-13</span><br>
+    <span class="badge">WATCH</span><span style="font-size:13px;color:rgba(255,255,255,.5);margin-left:8px">观望</span>
+  </div>
+  <div style="text-align:right">
+    <div class="score">49.6</div><div class="sl">综合评分</div>
+    <div class="pr">
+      <div class="pi"><div class="l">目标价</div><div class="v">8.16</div></div>
+      <div class="pi"><div class="l">止损价</div><div class="v">7.07</div></div>
+      <div class="pi"><div class="l">置信度</div><div class="v">62</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 统计条 -->
+<div class="sb">
+  <div class="stat"><div style="font-size:22px">🐮</div><div><div class="n">11</div><div class="l">智能体</div></div></div>
+  <div class="stat"><div style="font-size:22px">🗣️</div><div><div class="n">2轮</div><div class="l">多空辩论</div></div></div>
+  <div class="stat"><div style="font-size:22px">📊</div><div><div class="n">7维</div><div class="l">评分</div></div></div>
+  <div class="stat"><div style="font-size:22px">⏱️</div><div><div class="n">266s</div><div class="l">耗时</div></div></div>
+  <div class="stat"><div style="font-size:22px">🔥</div><div><div class="n">635K</div><div class="l">tokens</div></div></div>
+</div>
+
+<!-- Phase 1 -->
+<div class="ph"><div class="pn">1</div><div><div class="pt">分析师团队</div><div class="ps">三面并行 · 各自独立出具报告</div></div></div>
+
+<div class="ar">
+  <!-- 技术分析师 -->
+  <div class="ac">
+    <div class="ah"><img src="avatars/tech.svg" alt="技术分析师"><div><div class="an">技术分析师</div><div class="ar2">Technical Analyst</div></div><span class="st sdone">✓</span></div>
+    <div class="sc">58.2<small>neutral</small></div>
+    <div class="viz">
+      <div class="viz-row"><span class="lbl">评分</span><div class="bar-bg"><div class="bar-fill" style="width:58%;background:linear-gradient(90deg,#FFD43B,#F59F00)"></div></div><span>58/100</span></div>
+      <div class="viz-row"><span class="lbl">价位</span><div class="range-bar"><span class="range-mark" style="left:5%">7.07</span><span class="range-dot" style="left:44%"></span><span class="range-mark" style="left:95%">8.16</span></div></div>
+      <div class="viz-row"><span class="lbl">现价</span><span style="font-size:14px;font-weight:700">7.51</span></div>
+      <div class="flow">
+        <div class="flow-item flow-up">↑ 近5日 +2.0亿</div>
+        <div class="flow-item flow-dn">↓ 最新 -4.1亿</div>
+      </div>
+      <div class="viz-row"><span class="lbl">牛场景</span><div class="bar-bg"><div class="bar-fill" style="width:60%;background:#51CF66"></div></div><span>60% → 8.16</span></div>
+      <div class="viz-row"><span class="lbl">基准</span><div class="bar-bg"><div class="bar-fill" style="width:30%;background:#FFD43B"></div></div><span>30% → 7.35</span></div>
+      <div class="viz-row"><span class="lbl">熊场景</span><div class="bar-bg"><div class="bar-fill" style="width:10%;background:#FF8787"></div></div><span>10% → 6.95</span></div>
+    </div>
+    <details class="exp"><summary>展开全部 37 个字段 ▾</summary>
+      <div class="grid">
+        <div class="gcard"><div class="gt">短期趋势</div><div class="gv">反弹信号初现</div><div class="gs">MACD底背离</div></div>
+        <div class="gcard"><div class="gt">中期趋势</div><div class="gv bad">空头排列</div><div class="gs">20日跌幅-3.5%</div></div>
+        <div class="gcard"><div class="gt">长期趋势</div><div class="gv good">周线多头</div><div class="gs">DIF>DEA>0</div></div>
+        <div class="gcard"><div class="gt">MACD</div><div class="gv">死叉/底背离</div><div class="gs">看涨背离</div></div>
+        <div class="gcard"><div class="gt">KDJ</div><div class="gv">neutral</div><div class="gs">无背离</div></div>
+        <div class="gcard"><div class="gt">RSI</div><div class="gv">neutral</div><div class="gs">无背离</div></div>
+        <div class="gcard"><div class="gt">强支撑</div><div class="gv good">7.07</div></div>
+        <div class="gcard"><div class="gt">弱支撑</div><div class="gv">7.31</div></div>
+        <div class="gcard"><div class="gt">弱阻力</div><div class="gv">7.65</div></div>
+        <div class="gcard"><div class="gt">强阻力</div><div class="gv bad">8.16</div></div>
+        <div class="gcard"><div class="gt">止损价</div><div class="gv">7.07</div><div class="gs">ATR调整</div></div>
+        <div class="gcard"><div class="gt">盈亏比</div><div class="gv warn">1:1.54</div><div class="gs">偏低</div></div>
+        <div class="gcard"><div class="gt">K线形态</div><div class="gv good">晨星+十字星</div><div class="gs">底部反转</div></div>
+        <div class="gcard"><div class="gt">量能</div><div class="gv">温和放量</div><div class="gs">量比1.15</div></div>
+        <div class="gcard"><div class="gt">资金流向</div><div class="gv warn">流入转流出</div><div class="gs">5日+2亿→最新-4.1亿</div></div>
+        <div class="gcard"><div class="gt">相对强度</div><div class="gv bad">跑输大盘</div><div class="gs">-2.3%</div></div>
+        <div class="gcard"><div class="gt">周线</div><div class="gv warn">动能转弱</div><div class="gs">收大阴线-5.76%</div></div>
+        <div class="gcard"><div class="gt">共振</div><div class="gv warn">信号分歧</div><div class="gs">日/周冲突</div></div>
+        <div class="gcard"><div class="gt">失败条件</div><div class="gv bad">跌破7.31</div><div class="gs">双底失效</div></div>
+      </div>
+    </details>
+  </div>
+
+  <!-- 基本面分析师 -->
+  <div class="ac">
+    <div class="ah"><img src="avatars/fund.svg" alt="基本面分析师"><div><div class="an">基本面分析师</div><div class="ar2">Fundamentals Analyst</div></div><span class="st sdone">✓</span></div>
+    <div class="sc">55.0<small>neutral</small></div>
+    <div class="viz">
+      <div class="viz-row"><span class="lbl">评分</span><div class="bar-bg"><div class="bar-fill" style="width:55%;background:linear-gradient(90deg,#FFD43B,#F59F00)"></div></div><span>55/100</span></div>
+      <div class="viz-row"><span class="lbl">PE分位</span><div class="bar-bg"><div class="bar-fill" style="width:3%;background:#51CF66"></div></div><span class="gv good">3%</span></div>
+      <div class="viz-row"><span class="lbl">PB分位</span><div class="bar-bg"><div class="bar-fill" style="width:1%;background:#51CF66"></div></div><span class="gv good">1%</span></div>
+      <div class="viz-row"><span class="lbl">DCF低估</span><div class="bar-bg"><div class="bar-fill" style="width:18%;background:#51CF66"></div></div><span class="gv good">低估18%</span></div>
+      <div class="viz-row"><span class="lbl">OCF/NP</span><div class="bar-bg"><div class="bar-fill" style="width:100%;background:#51CF66"></div></div><span class="gv good">16.29</span></div>
+      <div class="viz-row"><span class="lbl">股息率</span><div class="bar-bg"><div class="bar-fill" style="width:52%;background:#51CF66"></div></div><span class="gv good">5.2%</span></div>
+      <div class="viz-row"><span class="lbl">净利增速</span><div class="bar-bg"><div class="bar-fill" style="width:5%;background:#FF8787"></div></div><span class="gv bad">+1.5%</span></div>
+    </div>
+    <div class="dlv">
+      <div class="t">核心结论</div>
+      <ul><li>估值极低(PE 3%分位) + 现金流极好(OCF 16倍)</li><li>但增速停滞(+1.5%) + 机构未增持(neutral)</li></ul>
+    </div>
+    <details class="exp"><summary>展开全部 60 个字段 ▾</summary>
+      <div class="grid">
+        <div class="gcard"><div class="gt">PE(TTM)</div><div class="gv good">7.27</div><div class="gs">历史3%分位</div></div>
+        <div class="gcard"><div class="gt">PB</div><div class="gv good">0.65</div><div class="gs">历史1%分位</div></div>
+        <div class="gt" style="grid-column:1/-1;font-size:12px;font-weight:700;margin-top:6px;padding:4px;border-bottom:1px solid var(--bd)">— DCF估值 —</div>
+        <div class="gcard"><div class="gt">内在价值</div><div class="gv good">9.85</div><div class="gs">低估18%</div></div>
+        <div class="gcard"><div class="gt">PE vs DCF</div><div class="gv good">交叉验证低估</div></div>
+        <div class="gt" style="grid-column:1/-1;font-size:12px;font-weight:700;margin-top:6px;padding:4px;border-bottom:1px solid var(--bd)">— 场景目标价 —</div>
+        <div class="gcard"><div class="gt">乐观</div><div class="gv good">9.20</div></div>
+        <div class="gcard"><div class="gt">中性</div><div class="gv">7.60</div></div>
+        <div class="gcard"><div class="gt">悲观</div><div class="gv bad">6.30</div></div>
+        <div class="gt" style="grid-column:1/-1;font-size:12px;font-weight:700;margin-top:6px;padding:4px;border-bottom:1px solid var(--bd)">— 财务健康 —</div>
+        <div class="gcard"><div class="gt">净利率</div><div class="gv">38.2%</div></div>
+        <div class="gcard"><div class="gt">ROE</div><div class="gv">11.2%</div><div class="gs">年均12.1%</div></div>
+        <div class="gcard"><div class="gt">营收增速</div><div class="gv">+2.1%</div></div>
+        <div class="gcard"><div class="gt">OCF/NP</div><div class="gv good">16.29</div></div>
+        <div class="gcard"><div class="gt">有息负债</div><div class="gv good">0</div></div>
+        <div class="gt" style="grid-column:1/-1;font-size:12px;font-weight:700;margin-top:6px;padding:4px;border-bottom:1px solid var(--bd)">— 股东结构 —</div>
+        <div class="gcard"><div class="gt">insider</div><div class="gv warn">neutral</div></div>
+        <div class="gcard"><div class="gt">机构比例</div><div class="gv">35.2%</div></div>
+        <div class="gcard"><div class="gt">机构数</div><div class="gv">142家</div></div>
+        <div class="gt" style="grid-column:1/-1;font-size:12px;font-weight:700;margin-top:6px;padding:4px;border-bottom:1px solid var(--bd)">— 核心优势/风险 —</div>
+        <div class="gcard"><div class="gt">优势1</div><div class="gv good">全球最大行</div></div>
+        <div class="gcard"><div class="gt">优势2</div><div class="gv good">零有息负债</div></div>
+        <div class="gcard"><div class="gt">风险1</div><div class="gv bad">增速停滞</div></div>
+        <div class="gcard"><div class="gt">风险2</div><div class="gv bad">息差收窄</div></div>
+        <div class="gt" style="grid-column:1/-1;font-size:12px;font-weight:700;margin-top:6px;padding:4px;border-bottom:1px solid var(--bd)">— 跟踪指标 —</div>
+        <div class="gcard"><div class="gt">跟踪1</div><div class="gv">ROE ≥ 11%</div></div>
+        <div class="gcard"><div class="gt">跟踪2</div><div class="gv">营收 ≥ 3%</div></div>
+        <div class="gcard"><div class="gt">跟踪3</div><div class="gv">PE ≤ 10%</div></div>
+        <div class="gcard"><div class="gt">跟踪4</div><div class="gv">OCF ≥ 10</div></div>
+      </div>
+    </details>
+  </div>
+
+  <!-- 新闻分析师 -->
+  <div class="ac" style="min-width:260px">
+    <div class="ah"><img src="avatars/news.svg" alt="新闻分析师"><div><div class="an">新闻分析师</div><div class="ar2">News Analyst</div></div><span class="st sdone">✓</span></div>
+    <div class="sc">69<small>bullish</small></div>
+    <div class="viz">
+      <div class="viz-row"><span class="lbl">评分</span><div class="bar-bg"><div class="bar-fill" style="width:69%;background:linear-gradient(90deg,#51CF66,#2F9E44)"></div></div><span>69/100</span></div>
+      <div class="viz-row"><span class="lbl">情绪</span><span class="gv good" style="font-size:14px">😊 positive</span><span>置信75%</span></div>
+      <div class="flow">
+        <div class="flow-item flow-up">👍 正面 3条</div>
+        <div class="flow-item flow-dn">👎 负面 1条</div>
+      </div>
+    </div>
+    <div class="dlv">
+      <div class="t">关键事件</div>
+      <ul><li>大行估值修复预期增强</li><li>分红方案落地</li><li>利率政策边际改善</li></ul>
+    </div>
+    <details class="exp"><summary>展开 ▾</summary>
+      <div class="grid">
+        <div class="gcard"><div class="gt">事件1</div><div class="gv good">估值修复</div><div class="gs">影响:高</div></div>
+        <div class="gcard"><div class="gt">事件2</div><div class="gv good">分红落地</div><div class="gs">影响:中</div></div>
+        <div class="gcard"><div class="gt">事件3</div><div class="gv good">利率改善</div><div class="gs">影响:中</div></div>
+        <div class="gcard"><div class="gt">风险事件</div><div class="gv">无</div></div>
+        <div class="gcard"><div class="gt">失效条件</div><div class="gv bad">利率↓/不良↑</div></div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 2 辩论（对话流） -->
+<div class="ph"><div class="pn">2</div><div><div class="pt">多空辩论</div><div class="ps">2轮 · 接收三份报告</div></div></div>
+
+<div class="chat">
+  <div class="round-tag-wrap"><span class="round-tag">第 1 轮 · 立论</span></div>
+
+  <div style="display:flex;gap:10px;align-items:flex-start">
+    <img src="avatars/bull.svg" style="width:40px;height:40px;border-radius:50%;flex-shrink:0" alt="bull">
+    <div class="bubble bull-b">
+      <div class="who">🐂 看多辩手</div>
+      PE 7.27 历史 3% 分位，极度低估。股息率 5.2% 超银行理财，类债券配置价值。OCF 16.29 倍，利润含金量极高，零有息负债。
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;align-items:flex-start;justify-content:flex-end">
+    <div class="bubble bear-b">
+      <div class="who">🐻 看空辩手</div>
+      净利增速仅 +1.5%，接近停滞。insider=neutral，机构未增持。利率下行周期银行息差持续收窄，ROE 从 13% 降至 11.2%。
+    </div>
+    <img src="avatars/bear.svg" style="width:40px;height:40px;border-radius:50%;flex-shrink:0" alt="bear">
+  </div>
+
+  <div class="round-tag-wrap"><span class="round-tag">第 2 轮 · 反驳</span></div>
+
+  <div style="display:flex;gap:10px;align-items:flex-start">
+    <img src="avatars/bull.svg" style="width:40px;height:40px;border-radius:50%;flex-shrink:0" alt="bull">
+    <div class="bubble bull-b">
+      <div class="who">🐂 看多辩手（反驳）</div>
+      增速虽降但绝对值稳定，低增速已在 PE 中反映（price in）。五大行 A/H 溢价收敛是全球趋势。分红率稳定 30%。
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;align-items:flex-start;justify-content:flex-end">
+    <div class="bubble bear-b">
+      <div class="who">🐻 看空辩手（反驳）</div>
+      低 PE 是市场对增速的合理定价，不是错杀。没有催化剂就没有估值修复。需看到息差企稳信号才值得配置。
+    </div>
+    <img src="avatars/bear.svg" style="width:40px;height:40px;border-radius:50%;flex-shrink:0" alt="bear">
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 3 研究经理 -->
+<div class="ph"><div class="pn">3</div><div><div class="pt">研究经理评判</div><div class="ps">接收：三份报告+完整辩论+新闻</div></div></div>
+
+<div class="ar">
+  <div class="ac" style="max-width:600px">
+    <div class="ah"><img src="avatars/rm.svg" alt="研究经理"><div><div class="an">研究经理</div><div class="ar2">Research Manager</div></div><span class="st sdone">✓</span></div>
+    <div style="display:flex;gap:24px;margin:8px 0">
+      <div><div class="sc">49.6</div><div style="font-size:11px;color:var(--tx2)">调整后分数</div></div>
+      <div><div style="font-size:24px;font-weight:800;color:var(--danger)">bear 胜</div><div style="font-size:11px;color:var(--tx2)">delta -3</div></div>
+      <div><div style="font-size:24px;font-weight:800">neutral</div><div style="font-size:11px;color:var(--tx2)">方向</div></div>
+    </div>
+    <div class="dlv"><div class="t">评判理由</div>
+      <ul><li>"看空方成功论证利率下行对息差的持续挤压"</li><li>"看多方虽指出极低估值，但缺乏增长催化剂"</li></ul>
+    </div>
+    <div class="dlv" style="margin-top:8px"><div class="t">最强论点</div>
+      <ul><li><b style="color:var(--danger)">看多最强:</b> "PE历史3%分位+5.2%股息"</li><li><b style="color:var(--ok)">看空最强:</b> "增速1.5%停滞，低PE是合理定价"</li></ul>
+    </div>
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 4-5 风险 -->
+<div class="ph"><div class="pn">4-5</div><div><div class="pt">风险辩论 + 风险经理</div><div class="ps">三方辩论 · 汇总风险</div></div></div>
+
+<div class="risk3">
+  <div class="rk"><img src="avatars/aggr.svg"><div class="rn">激进方</div><div class="rv">"低估18%，跌了就是机会"</div></div>
+  <div class="rk"><img src="avatars/neu.svg"><div class="rn">中性方</div><div class="rv">"缺催化剂，适合底仓"</div></div>
+  <div class="rk"><img src="avatars/cons.svg"><div class="rn">保守方</div><div class="rv">"息差承压，ROE向下"</div></div>
+</div>
+
+<div class="ar">
+  <div class="ac" style="max-width:600px">
+    <div class="ah"><img src="avatars/riskmgr.svg" alt="风险经理"><div><div class="an">风险经理</div><div class="ar2">Risk Manager</div></div><span class="st sdone">✓</span></div>
+    <div style="display:flex;gap:24px;margin:8px 0">
+      <div><div style="font-size:24px;font-weight:800;color:var(--danger)">high</div><div style="font-size:11px;color:var(--tx2)">风险等级</div></div>
+      <div><div style="font-size:24px;font-weight:800">68</div><div style="font-size:11px;color:var(--tx2)">评分</div></div>
+      <div><div style="font-size:24px;font-weight:800">standard</div><div style="font-size:11px;color:var(--tx2)">仓位</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="cn"><div class="ln"></div></div>
+
+<!-- Phase 6 交易员 -->
+<div class="ph"><div class="pn">6</div><div><div class="pt">交易员最终决策</div><div class="ps">接收全部信息</div></div></div>
+
+<div class="tc">
+  <div class="th"><img src="avatars/trader.svg" alt="交易员"><div><div style="font-size:18px;font-weight:700">交易员</div><div style="font-size:12px;color:var(--tx2)">Trader · 最终决策</div></div><span class="st sdone" style="margin-left:auto">✓ 266s</span></div>
+
+  <div class="tm">
+    <div class="mb"><div class="l">决策</div><div class="v">WATCH</div></div>
+    <div class="mb"><div class="l">目标价</div><div class="v">8.16</div></div>
+    <div class="mb"><div class="l">止损价</div><div class="v">7.07</div></div>
+    <div class="mb"><div class="l">置信度</div><div class="v">62</div></div>
+    <div class="mb"><div class="l">仓位</div><div class="v">40-70%</div></div>
+    <div class="mb"><div class="l">时间</div><div class="v">1-3月</div></div>
+  </div>
+
+  <!-- 分批止盈 -->
+  <div style="margin-top:14px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:6px">▸ 分批止盈</div>
+    <div style="display:flex;gap:8px">
+      <div style="flex:1;background:#fff;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:var(--tx2)">目标1</div><div style="font-size:16px;font-weight:700;color:var(--ok)">7.60</div><div style="font-size:11px;color:var(--tx2)">减30%</div></div>
+      <div style="flex:1;background:#fff;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:var(--tx2)">目标2</div><div style="font-size:16px;font-weight:700;color:var(--warn)">8.16</div><div style="font-size:11px;color:var(--tx2)">减40%</div></div>
+      <div style="flex:1;background:#fff;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:var(--tx2)">目标3</div><div style="font-size:16px;font-weight:700;color:var(--danger)">9.20</div><div style="font-size:11px;color:var(--tx2)">清30%</div></div>
+    </div>
+  </div>
+
+  <div class="el"><div class="t">▸ 催化剂</div><ul><li>利率政策边际改善</li><li>insider 转为 net_buy</li><li>净息差企稳</li></ul></div>
+  <div class="el"><div class="t">▸ 入场条件</div><ul><li>放量站稳 MA10（7.35）3日</li><li>MACD 绿转红底背离确认</li><li>insider 转为 net_buy</li></ul></div>
+
+  <details class="exp"><summary>展开完整推理+风险+置信度 ▾</summary>
+    <div style="margin-top:8px;font-size:12px;color:var(--tx2);line-height:1.8">
+      <p style="margin-bottom:8px"><b>决策推理：</b>综合49.6分中性偏空。PE低估+OCF极好+股息高，但insider=neutral+增速停滞+息差收窄。看空胜(-3)。风险high。观望。</p>
+      <p style="margin:8px 0 4px"><b>风险提示：</b></p>
+      <ul style="padding-left:16px"><li>利率下行息差收窄</li><li>增速停滞</li><li>无增量资金</li></ul>
+      <p style="margin:12px 0 4px"><b>置信度 5 维（62/100）：</b></p>
+      <div class="tp-row"><span style="width:70px">信号一致</span><div class="tp-bar"><div class="tp-fill" style="width:80%;background:#4C6EF5"></div></div><span>16/20</span></div>
+      <div class="tp-row"><span style="width:70px">数据充分</span><div class="tp-bar"><div class="tp-fill" style="width:85%;background:#2F9E44"></div></div><span>17/20</span></div>
+      <div class="tp-row"><span style="width:70px">辩论确定</span><div class="tp-bar"><div class="tp-fill" style="width:55%;background:#F59F00"></div></div><span>11/20</span></div>
+      <div class="tp-row"><span style="width:70px">风控可控</span><div class="tp-bar"><div class="tp-fill" style="width:60%;background:#E8590C"></div></div><span>12/20</span></div>
+      <div class="tp-row"><span style="width:70px">估值合理</span><div class="tp-bar"><div class="tp-fill" style="width:60%;background:#9C36B5"></div></div><span>12/20</span></div>
+    </div>
+  </details>
+</div>
+
+<div style="text-align:center;padding:20px;color:#868E96;font-size:12px">11 agents · 6 phases · 266s · 635K tokens</div>
+</body>
+</html>
