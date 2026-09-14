@@ -56,6 +56,7 @@ class DebateLoop:
         fund_report: dict,
         max_rounds: int = 2,
         news_report: dict | None = None,
+        on_speech: callable | None = None,
     ) -> dict:
         """
         运行完整辩论循环
@@ -66,6 +67,8 @@ class DebateLoop:
             fund_report: 基本面分析师 JSON 输出
             max_rounds: 辩论轮数 (每轮 Bull + Bear 各发言一次)
             news_report: 新闻分析师 JSON 输出（可选）
+            on_speech: 发言完成回调（可选）on_speech(round, role, content, duration_ms)，
+                直播信号用（speech_done 事件）
 
         Returns:
             {
@@ -148,6 +151,12 @@ class DebateLoop:
                 content=bull_content,
                 round_num=round_num,
             )
+            if on_speech:
+                try:
+                    on_speech(round_num, "bull", bull_content,
+                              bull_result.get("duration_ms", 0))
+                except Exception as e:
+                    logger.warning(f"[Debate] on_speech callback failed: {e}")
 
             # --- Bear 发言 ---
             logger.info(f"[Debate] Round {round_num}: Bear debater speaking...")
@@ -192,6 +201,12 @@ class DebateLoop:
                 content=bear_content,
                 round_num=round_num,
             )
+            if on_speech:
+                try:
+                    on_speech(round_num, "bear", bear_content,
+                              bear_result.get("duration_ms", 0))
+                except Exception as e:
+                    logger.warning(f"[Debate] on_speech callback failed: {e}")
 
             rounds_detail.append(round_detail)
 

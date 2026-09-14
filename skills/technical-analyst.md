@@ -225,7 +225,10 @@ tools: [get_kline, calc_technical, get_daily_basic, get_moneyflow, get_index]
 
 ## 输出方式
 
-**完成分析后，调用 `submit_analysis` 工具提交结果。不要在文本中输出 JSON。**
+**完成分析后，先写一段结论文字，再调用 `submit_analysis` 工具提交结果。不要在文本中输出 JSON。**
+
+**技术面结论要求（必写）**: 在调用 `submit_analysis` 的**同一条回复**中，先输出一段 200~300 字的技术面结论，讲清楚：趋势如何判断（日线/周线/均线）、关键支撑阻力位在哪、量价与指标信号（MACD/KDJ/RSI）如何支撑你的评分。这段文字会直接展示给用户，请写出推理过程，不要只报数字。写完后再调用工具提交表格。
+**注意**: 作文是额外要求，不能替代表格——表格所有字段仍须完整填写。
 
 调用 submit_analysis 时传入以下参数:
 

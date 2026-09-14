@@ -20,6 +20,7 @@ import logging
 
 from src.core.agent_loop import AgentLoop
 from src.core.skill_loader import load_skill
+from src.infra.message_bus import MessageBus
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +46,13 @@ class RiskLoop:
         )
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, persist_dir: str | None = None):
         self.config = config
         self.loop = AgentLoop(config)
         # 辩论历史: list of (debater_name, content)
         self._history: list[tuple[str, str]] = []
+        # 消息总线: 听证发言实时落 JSONL（与 debate_loop 同款机制）
+        self.bus = MessageBus(persist_dir=persist_dir)
 
     def run(
         self,
@@ -58,6 +61,7 @@ class RiskLoop:
         reports_summary: str,
         max_rounds: int = 1,
         deadline: float = None,
+        on_speech: callable | None = None,
     ) -> dict:
         """
         运行三方风险辩论
@@ -67,6 +71,8 @@ class RiskLoop:
             research_manager_output: 研究经理的 JSON 输出
             reports_summary: 分析师报告摘要（来自 debate_loop._format_reports）
             max_rounds: 辩论轮数（默认1轮，三方各发言一次）
+            on_speech: 发言完成回调（可选）on_speech(round, role, content, duration_ms)，
+                role 为小写（aggressive/conservative/neutral），直播信号用
 
         Returns:
             {
@@ -147,6 +153,20 @@ class RiskLoop:
 
                 # 记录到历史
                 self._history.append((display_name, content))
+                # 发到消息总线（JSONL 落盘）
+                self.bus.send(
+                    from_agent=display_name.lower() + "-debater",
+                    to_agent="risk-manager",
+                    content=content,
+                    round_num=round_num,
+                    msg_type="risk",
+                )
+                if on_speech:
+                    try:
+                        on_speech(round_num, display_name.lower(), content,
+                                  result.get("duration_ms", 0))
+                    except Exception as e:
+                        logger.warning(f"[RiskLoop] on_speech callback failed: {e}")
 
             rounds_detail.append(round_detail)
             if _deadline_hit:

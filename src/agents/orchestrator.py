@@ -35,6 +35,7 @@ from src.infra.quality import (
 from src.core.submit_tool import get_submit_tool
 from src.agents.debate_loop import DebateLoop
 from src.agents.risk_loop import RiskLoop
+from src.infra.progress_emitter import normalize_result, _normalize_risk
 
 from src.tools.tushare_utils import enable_cache, disable_cache, get_cache_stats
 from src.tools.get_kline import get_kline
@@ -66,6 +67,21 @@ _EXPECTED_BREAKDOWN_COUNTS = {"tech": 11, "fund": 14, "news": 6}
 ANALYST_TIMEOUT = 180
 TOTAL_BUDGET = 600
 
+# 直播事件用: 六阶段标签与预估耗时区间(秒, p25/p75 取自历史跑批)
+# 与前端 run_started.plan 契约一致 (est_ms_range 单位=秒, 前端 *1000)
+STAGE_LABELS = {
+    1: "三路侦察", 2: "多空对决", 3: "经理裁决",
+    4: "风险听证", 5: "风险裁决", 6: "交易员拍板",
+}
+STAGE_EST_SECONDS = [(10, 130), (50, 115), (20, 40), (30, 70), (20, 40), (20, 40)]
+
+# 直播事件用: 风险经理 agent_done 携带的字段(与前端 RISKMGR_KEYS 对齐 + 2a捡回字段)
+RISKMGR_EVENT_KEYS = (
+    "risk_level", "risk_score", "risk_winner", "key_risks",
+    "key_opportunities", "position_suggestion", "stop_loss_suggestion",
+    "risk_rationale", "risk_scoring_breakdown",
+)
+
 
 def _truncate_inject_data(data: dict) -> str:
     """Serialize pre-fetched data, truncating if too large for context."""
@@ -82,6 +98,13 @@ class MultiAgentOrchestrator:
         self.config = config
         self.loop = AgentLoop(config)
         self.persist_dir = persist_dir
+        # 叙述全文暂存(2a-2): 三个 _run_* 内部 stash, run_analysis 取用发事件
+        self._rm_narrative = None
+        self._rm_duration_ms = 0
+        self._riskmgr_narrative = None
+        self._riskmgr_duration_ms = 0
+        self._trader_narrative = None
+        self._trader_duration_ms = 0
 
     def run_analysis(
         self,
@@ -89,6 +112,8 @@ class MultiAgentOrchestrator:
         max_iterations: int = 10,
         debate_rounds: int = 2,
         skip_debate: bool = False,
+        on_event: callable | None = None,
+        stock_name: str = "",
     ) -> dict:
         """
         运行完整的分析流程
@@ -98,6 +123,9 @@ class MultiAgentOrchestrator:
             max_iterations: 每个分析师的最大迭代次数
             debate_rounds: 辩论轮数 (每轮 Bull + Bear 各发言一次)
             skip_debate: 是否跳过辩论阶段（用于快速测试）
+            on_event: 直播事件回调（可选）on_event(type, stage, data, agent=None)，
+                事件契约 v1，由上层(EventEmitter)包装信封落盘
+            stock_name: 股票名称（可选，直播事件展示用）
 
         Returns:
             {
@@ -131,6 +159,81 @@ class MultiAgentOrchestrator:
 
         logger.info(f"[Orchestrator] Starting analysis for {stock_code}")
 
+        # ---- 直播事件基础设施（fail-open: 发射失败绝不影响分析） ----
+        self._rm_narrative = None
+        self._rm_duration_ms = 0
+        self._riskmgr_narrative = None
+        self._riskmgr_duration_ms = 0
+        self._trader_narrative = None
+        self._trader_duration_ms = 0
+
+        def _emit(etype: str, stage: int, data: dict, agent: str | None = None):
+            if on_event is None:
+                return
+            try:
+                on_event(etype, stage, data, agent)
+            except Exception as e:
+                logger.warning(f"[Orchestrator] event emit failed ({etype}): {e}")
+
+        def _stage_plan() -> list[dict]:
+            return [
+                {"stage": i + 1, "label": STAGE_LABELS[i + 1],
+                 "est_ms_range": [STAGE_EST_SECONDS[i][0], STAGE_EST_SECONDS[i][1]]}
+                for i in range(6)
+            ]
+
+        _emit("run_started", 1, {
+            "stock_code": stock_code,
+            "stock_name": stock_name or stock_code,
+            "max_iterations": max_iterations,
+            "debate_rounds": debate_rounds,
+            "plan": _stage_plan(),
+        })
+
+        def _hb_forwarder(agent_id: str):
+            """agent_loop 原始进度 -> 契约 agent_heartbeat 事件"""
+            def fwd(raw: dict):
+                d = dict(raw)
+                if d.pop("kind", None) is None:
+                    return
+                _emit("agent_heartbeat", 1, d, agent=agent_id)
+            return fwd
+
+        def _analyst_json_for_event(result: dict, agent_id: str) -> dict:
+            """事件用 json: 与主流程同款校验（structured 优先, 文本兜底）"""
+            schema = {"tech": "technical", "fund": "fundamentals", "news": "news"}[agent_id]
+            structured = result.get("structured_output")
+            if structured:
+                v = validate_structured_output(structured, schema)
+            else:
+                # 护栏: 兜底解析只喂末轮文字，防早轮草稿 JSON 污染提取
+                v = validate_analyst_output(
+                    result.get("last_round_text") or result.get("content") or "",
+                    schema,
+                )
+            return v.get("json_data") or {}
+
+        def _emit_agent_done(agent_id: str, result: dict):
+            _emit("agent_done", 1, {
+                "content": result.get("content") or "",
+                "json": _analyst_json_for_event(result, agent_id),
+                "duration_ms": result.get("duration_ms", 0),
+                "tool_calls": result.get("tool_calls", 0),
+                "iterations": result.get("iterations", 0),
+                "error_type": result.get("error_type"),
+            }, agent=agent_id)
+
+        def _analyst_task(agent_id: str, fn):
+            """包装分析师任务: 完成即发 agent_done（谁先完成谁先亮，不等齐）"""
+            def task(code: str, max_iter: int):
+                result = fn(code, max_iter, on_event=_hb_forwarder(agent_id))
+                try:
+                    _emit_agent_done(agent_id, result)
+                except Exception as e:
+                    logger.warning(f"[Orchestrator] agent_done emit failed ({agent_id}): {e}")
+                return result
+            return task
+
         # Step 1+2: 并行运行技术分析师和基本面分析师
         import concurrent.futures
 
@@ -138,15 +241,20 @@ class MultiAgentOrchestrator:
             "[Orchestrator] Phase 1: Running technical + fundamentals + news "
             "analysts in parallel..."
         )
+        t_stage1 = time.time()
+        _emit("stage_started", 1, {"label": STAGE_LABELS[1]})
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
             tech_future = executor.submit(
-                self._run_technical_analyst, stock_code, max_iterations
+                _analyst_task("tech", self._run_technical_analyst),
+                stock_code, max_iterations,
             )
             fund_future = executor.submit(
-                self._run_fundamentals_analyst, stock_code, max_iterations
+                _analyst_task("fund", self._run_fundamentals_analyst),
+                stock_code, max_iterations,
             )
             news_future = executor.submit(
-                self._run_news_analyst, stock_code, max_iterations
+                _analyst_task("news", self._run_news_analyst),
+                stock_code, max_iterations,
             )
             results = []
             for future in [tech_future, fund_future, news_future]:
@@ -204,10 +312,15 @@ class MultiAgentOrchestrator:
                 )
                 time.sleep(10)
                 try:
-                    retried = retry_fn(stock_code, max_iterations)
+                    retried = retry_fn(
+                        stock_code, max_iterations,
+                        on_event=_hb_forwarder(["tech", "fund", "news"][idx]),
+                    )
                     if retried["success"]:
                         logger.info(f"[Orchestrator] {label} analyst retry succeeded")
                         results[idx] = retried
+                        # 重试成功: 用最终结果补发 agent_done（前端幂等覆盖）
+                        _emit_agent_done(["tech", "fund", "news"][idx], retried)
                     else:
                         logger.warning(
                             f"[Orchestrator] {label} analyst retry also failed: "
@@ -223,6 +336,9 @@ class MultiAgentOrchestrator:
         state.set("tech_report", tech_result)
         state.set("fund_report", fund_result)
         state.set("news_report", news_result)
+        _emit("stage_done", 1, {
+            "duration_ms": int((time.time() - t_stage1) * 1000),
+        })
         logger.info(
             f"[Orchestrator] All analysts done: "
             f"tech_success={tech_result['success']} "
@@ -240,7 +356,8 @@ class MultiAgentOrchestrator:
                 v = validate_structured_output(structured, schema_type)
                 logger.info(f"[Orchestrator] {schema_type}: used structured output (tool submit)")
                 return v
-            content = result.get("content", "")
+            # 护栏: 兜底解析只喂末轮文字，防早轮草稿 JSON 污染提取
+            content = result.get("last_round_text") or result.get("content") or ""
             logger.info(f"[Orchestrator] {schema_type}: fell back to text parsing")
             return validate_analyst_output(content, schema_type)
 
@@ -301,12 +418,21 @@ class MultiAgentOrchestrator:
 
         # Step 5: 看多/看空辩论 (Phase 2)
         debate_result = None
+        t_stage2 = time.time()
         if (not skip_debate and time.time() <= deadline
                 and _is_valid_analysis(tech_json) and _is_valid_analysis(fund_json)):
             logger.info(
                 f"[Orchestrator] Phase 2.5: Starting debate "
                 f"(rounds={debate_rounds})..."
             )
+            _emit("stage_started", 2, {"label": STAGE_LABELS[2]})
+
+            def _on_debate_speech(rnd, role, content, dur_ms):
+                _emit("speech_done", 2, {
+                    "round": rnd, "role": role, "content": content,
+                    "duration_ms": dur_ms,
+                }, agent=role)
+
             try:
                 debate = DebateLoop(self.config, persist_dir=self.persist_dir)
                 debate_result = debate.run(
@@ -315,10 +441,16 @@ class MultiAgentOrchestrator:
                     fund_report=fund_json,
                     max_rounds=debate_rounds,
                     news_report=news_json,
+                    on_speech=_on_debate_speech,
                 )
                 state.set("bull_args", debate_result.get("bull_arguments", ""))
                 state.set("bear_args", debate_result.get("bear_arguments", ""))
                 state.set("debate_rounds", debate_result.get("rounds_completed"))
+                _emit("stage_done", 2, {
+                    "duration_ms": debate_result.get("duration_ms",
+                                                     int((time.time() - t_stage2) * 1000)),
+                    "result": debate_result,
+                })
                 logger.info(
                     f"[Orchestrator] Debate done: "
                     f"rounds={debate_result.get('rounds_completed')}, "
@@ -327,8 +459,15 @@ class MultiAgentOrchestrator:
             except Exception as e:
                 logger.warning(f"[Orchestrator] Debate failed: {e}, continuing without debate")
                 debate_result = None
+                _emit("stage_done", 2, {
+                    "duration_ms": int((time.time() - t_stage2) * 1000),
+                    "skipped": True, "reason": f"辩论失败: {e}",
+                })
         else:
             logger.info("[Orchestrator] Skipping debate phase")
+            _emit("stage_done", 2, {
+                "duration_ms": 0, "skipped": True, "reason": "数据不足或预算超时",
+            })
 
         # Step 6: 综合汇总
         combined = self._synthesize_reports(tech_json, fund_json, news_json)
@@ -341,6 +480,8 @@ class MultiAgentOrchestrator:
             combined["debate_rounds"] = debate_result.get("rounds_completed", 0)
 
             # 尝试 LLM-based Research Manager
+            t_stage3 = time.time()
+            _emit("stage_started", 3, {"label": STAGE_LABELS[3]})
             rm_result = self._run_research_manager(
                 stock_code, tech_json, fund_json, debate_result, combined, news_json
             )
@@ -365,7 +506,16 @@ class MultiAgentOrchestrator:
                     "strongest_bear_point", ""
                 )
                 combined["risk_warnings"] = rm_result.get("risk_warnings", [])
+                # 2a-1: 捡回被白名单丢弃的经理总结（命名区分，避免与公式 summary 撞名）
+                if rm_result.get("summary"):
+                    combined["rm_summary"] = rm_result["summary"]
                 combined["synthesis_method"] = "llm_research_manager"
+                _emit("agent_done", 3, {
+                    "json": dict(combined),
+                    "content": self._rm_narrative,
+                    "duration_ms": self._rm_duration_ms,
+                    "tool_calls": 0, "iterations": 1, "error_type": None,
+                }, agent="rm")
                 logger.info(
                     f"[Orchestrator] Research Manager: "
                     f"winner={combined['debate_winner']}, "
@@ -376,9 +526,21 @@ class MultiAgentOrchestrator:
                 # 降级到 regex 方案
                 combined = self._apply_debate_adjustment(combined, debate_result)
                 combined["synthesis_method"] = "regex_fallback"
+                _emit("agent_done", 3, {
+                    "json": dict(combined),
+                    "content": None,
+                    "duration_ms": int((time.time() - t_stage3) * 1000),
+                    "tool_calls": 0, "iterations": 1, "error_type": "regex_fallback",
+                }, agent="rm")
                 logger.info("[Orchestrator] Research Manager failed, using regex fallback")
+            _emit("stage_done", 3, {
+                "duration_ms": int((time.time() - t_stage3) * 1000),
+            })
         else:
             combined["synthesis_method"] = "deterministic"
+            _emit("stage_done", 3, {
+                "duration_ms": 0, "skipped": True, "reason": "辩论未执行",
+            })
 
         state.set("research_summary", combined)
 
@@ -388,21 +550,36 @@ class MultiAgentOrchestrator:
         if (debate_result and time.time() <= deadline
                 and combined.get("synthesis_method", "") != "deterministic"):
             logger.info("[Orchestrator] Phase 4-5: Running risk debate...")
+            t_stage4 = time.time()
+            _emit("stage_started", 4, {"label": STAGE_LABELS[4]})
             try:
                 # Phase 4: 三方风险辩论
                 debate_formatter = DebateLoop(self.config)
                 reports_summary = debate_formatter._format_reports(
                     tech_json, fund_json, news_json
                 )
-                risk_loop = RiskLoop(self.config)
+                risk_loop = RiskLoop(self.config, persist_dir=self.persist_dir)
+
+                def _on_risk_speech(rnd, role, content, dur_ms):
+                    _emit("speech_done", 4, {
+                        "round": rnd, "role": role, "content": content,
+                        "duration_ms": dur_ms,
+                    }, agent=role)
+
                 risk_result = risk_loop.run(
                     stock_code=stock_code,
                     research_manager_output=combined,
                     reports_summary=reports_summary,
                     max_rounds=1,
                     deadline=deadline,
+                    on_speech=_on_risk_speech,
                 )
                 state.set("risk_debate", risk_result)
+                _emit("stage_done", 4, {
+                    "duration_ms": risk_result.get("duration_ms",
+                                                   int((time.time() - t_stage4) * 1000)),
+                    "result": _normalize_risk(risk_result),
+                })
                 logger.info(
                     f"[Orchestrator] Risk debate done: "
                     f"rounds={risk_result.get('rounds_completed')}, "
@@ -410,6 +587,8 @@ class MultiAgentOrchestrator:
                 )
 
                 # Phase 5: 风险经理评估
+                t_stage5 = time.time()
+                _emit("stage_started", 5, {"label": STAGE_LABELS[5]})
                 risk_manager_data = self._run_risk_manager(
                     stock_code, combined, risk_result, reports_summary
                 )
@@ -429,7 +608,22 @@ class MultiAgentOrchestrator:
                     combined["position_suggestion"] = risk_manager_data.get("position_suggestion", "")
                     combined["stop_loss_suggestion"] = risk_manager_data.get("stop_loss_suggestion", "")
                     combined["risk_warnings"] = risk_manager_data.get("risk_warnings", [])
+                    # 2a-1: 捡回被白名单丢弃的风险评判理由与评分明细
+                    combined["risk_rationale"] = risk_manager_data.get("risk_rationale", "")
+                    combined["risk_scoring_breakdown"] = risk_manager_data.get(
+                        "scoring_breakdown", {}
+                    )
                     combined["synthesis_method"] += "_with_risk_manager"
+                    riskmgr_event_json = {
+                        k: combined[k] for k in RISKMGR_EVENT_KEYS
+                        if combined.get(k) is not None
+                    }
+                    _emit("agent_done", 5, {
+                        "json": riskmgr_event_json,
+                        "content": self._riskmgr_narrative,
+                        "duration_ms": self._riskmgr_duration_ms,
+                        "tool_calls": 0, "iterations": 1, "error_type": None,
+                    }, agent="riskmgr")
                     logger.info(
                         f"[Orchestrator] Risk Manager: "
                         f"risk_level={combined['risk_level']}, "
@@ -439,11 +633,33 @@ class MultiAgentOrchestrator:
                 else:
                     combined["synthesis_method"] += "_risk_manager_failed"
                     logger.info("[Orchestrator] Risk Manager failed, using Research Manager result")
+                if risk_manager_data:
+                    _emit("stage_done", 5, {
+                        "duration_ms": int((time.time() - t_stage5) * 1000),
+                    })
+                else:
+                    _emit("stage_done", 5, {
+                        "duration_ms": int((time.time() - t_stage5) * 1000),
+                        "skipped": True, "reason": "风险经理评估失败",
+                    })
             except Exception as e:
                 logger.warning(f"[Orchestrator] Risk layer failed: {e}, continuing without risk adjustment")
                 risk_result = None
+                _emit("stage_done", 4, {
+                    "duration_ms": int((time.time() - t_stage4) * 1000),
+                    "skipped": True, "reason": f"风险层失败: {e}",
+                })
+                _emit("stage_done", 5, {
+                    "duration_ms": 0, "skipped": True, "reason": "风险层失败",
+                })
         else:
             logger.info("[Orchestrator] Skipping risk debate (no Research Manager result)")
+            _emit("stage_done", 4, {
+                "duration_ms": 0, "skipped": True, "reason": "研究经理未产出或预算超时",
+            })
+            _emit("stage_done", 5, {
+                "duration_ms": 0, "skipped": True, "reason": "研究经理未产出或预算超时",
+            })
 
         # Update summary with risk-adjusted score
         news_part = ""
@@ -457,6 +673,8 @@ class MultiAgentOrchestrator:
         )
 
         # Step 6b: Trader 交易决策 (第4刀: 超时跳过 LLM 走确定性兜底)
+        t_stage6 = time.time()
+        _emit("stage_started", 6, {"label": STAGE_LABELS[6]})
         if time.time() <= deadline:
             trader_result_data = self._run_trader(
                 stock_code, tech_json, fund_json, debate_result, combined,
@@ -492,6 +710,12 @@ class MultiAgentOrchestrator:
             combined["synthesis_method"] = (
                 combined.get("synthesis_method", "unknown") + "_with_trader"
             )
+            _emit("agent_done", 6, {
+                "json": trader_result_data,
+                "content": self._trader_narrative,
+                "duration_ms": self._trader_duration_ms,
+                "tool_calls": 0, "iterations": 1, "error_type": None,
+            }, agent="trader")
             logger.info(
                 f"[Orchestrator] Trader: "
                 f"action={trader_result_data['action']}, "
@@ -513,11 +737,20 @@ class MultiAgentOrchestrator:
                 combined.get("synthesis_method", "unknown")
                 + "_with_deterministic_trader"
             )
+            _emit("agent_done", 6, {
+                "json": fallback,
+                "content": None,
+                "duration_ms": int((time.time() - t_stage6) * 1000),
+                "tool_calls": 0, "iterations": 1, "error_type": "deterministic_fallback",
+            }, agent="trader")
             logger.info(
                 f"[Orchestrator] Trader fallback: "
                 f"action={fallback['action']}, "
                 f"target={fallback['target_price']}"
             )
+        _emit("stage_done", 6, {
+            "duration_ms": int((time.time() - t_stage6) * 1000),
+        })
 
         duration_ms = int((time.time() - start_time) * 1000)
         logger.info(
@@ -626,9 +859,16 @@ class MultiAgentOrchestrator:
             f"hit_rate={hit_rate:.0f}%"
         )
         disable_cache()
+
+        # 直播收尾: run_done 携带归一化终态（前端 D = data.result，契约对账基准）
+        try:
+            _emit("run_done", 6, {"result": normalize_result(result, stock_name=stock_name)})
+        except Exception as e:
+            logger.warning(f"[Orchestrator] run_done emit failed: {e}")
         return result
 
-    def _run_technical_analyst(self, stock_code: str, max_iterations: int) -> dict:
+    def _run_technical_analyst(self, stock_code: str, max_iterations: int,
+                               on_event=None) -> dict:
         """运行技术分析师"""
         skill_content = load_skill("technical-analyst")
         registry = ToolRegistry()
@@ -692,6 +932,9 @@ class MultiAgentOrchestrator:
                 f"请分析股票 {stock_code} 的技术面。"
                 f"按照工作流程依次调用5个工具获取数据，"
                 f"然后按评分锚定表逐项打分，输出完整的技术分析报告。"
+                f"所有工具调用完成后，先在同一条回复中写一段200~300字的中文结论推理"
+                f"（会直接展示给用户，讲清趋势判断/关键价位/信号依据），"
+                f"然后才调用 submit_analysis 提交表格。"
             ),
         }]
 
@@ -720,6 +963,7 @@ class MultiAgentOrchestrator:
             dispatch_map=registry.get_dispatch_map(),
             max_iterations=max_iterations,
             submit_tool_name="submit_analysis",
+            on_event=on_event,
         )
 
         # Fallback: inject pre-fetched data if LLM didn't call any tools
@@ -741,11 +985,13 @@ class MultiAgentOrchestrator:
                 dispatch_map=None,
                 max_iterations=2,
                 submit_tool_name="submit_analysis",
+                on_event=on_event,
             )
 
         return result
 
-    def _run_fundamentals_analyst(self, stock_code: str, max_iterations: int) -> dict:
+    def _run_fundamentals_analyst(self, stock_code: str, max_iterations: int,
+                                  on_event=None) -> dict:
         """运行基本面分析师"""
         skill_content = load_skill("fundamentals-analyst")
         registry = ToolRegistry()
@@ -804,6 +1050,9 @@ class MultiAgentOrchestrator:
                 f"请分析股票 {stock_code} 的基本面。"
                 f"按照工作流程依次调用6个工具获取数据，"
                 f"然后按评分锚定表逐项打分，输出完整的基本面分析报告。"
+                f"所有工具调用完成后，先在同一条回复中写一段200~300字的中文结论推理"
+                f"（会直接展示给用户，讲清财务健康/估值/成长判断依据），"
+                f"然后才调用 submit_analysis 提交表格。"
             ),
         }]
 
@@ -833,6 +1082,7 @@ class MultiAgentOrchestrator:
             dispatch_map=registry.get_dispatch_map(),
             max_iterations=max_iterations,
             submit_tool_name="submit_analysis",
+            on_event=on_event,
         )
 
         # Fallback: inject pre-fetched data if LLM didn't call any tools
@@ -854,11 +1104,13 @@ class MultiAgentOrchestrator:
                 dispatch_map=None,
                 max_iterations=2,
                 submit_tool_name="submit_analysis",
+                on_event=on_event,
             )
 
         return result
 
-    def _run_news_analyst(self, stock_code: str, max_iterations: int) -> dict:
+    def _run_news_analyst(self, stock_code: str, max_iterations: int,
+                          on_event=None) -> dict:
         """运行新闻分析师"""
         skill_content = load_skill("news-analyst")
         registry = ToolRegistry()
@@ -877,6 +1129,9 @@ class MultiAgentOrchestrator:
                 f"请分析股票 {stock_code} 的新闻面。"
                 f"调用 get_stock_news 获取新闻数据和情绪指标，"
                 f"然后按评分锚定表逐条分析，输出完整的新闻分析报告。"
+                f"所有工具调用完成后，先在同一条回复中写一段200~300字的中文结论推理"
+                f"（会直接展示给用户，讲清情绪倾向/关键事件影响/时效性），"
+                f"然后才调用 submit_analysis 提交表格。"
             ),
         }]
 
@@ -901,6 +1156,7 @@ class MultiAgentOrchestrator:
             dispatch_map=registry.get_dispatch_map(),
             max_iterations=max_iterations,
             submit_tool_name="submit_analysis",
+            on_event=on_event,
         )
 
         # Fallback: inject pre-fetched data if LLM didn't call any tools
@@ -926,6 +1182,7 @@ class MultiAgentOrchestrator:
                 dispatch_map=None,
                 max_iterations=2,
                 submit_tool_name="submit_analysis",
+                on_event=on_event,
             )
 
         return result
@@ -1110,12 +1367,17 @@ class MultiAgentOrchestrator:
             )
             return None
 
+        # 2a-2: 叙述全文与耗时带回（直播事件用）
+        self._rm_narrative = result.get("content") or None
+        self._rm_duration_ms = result.get("duration_ms", 0)
+
         structured = result.get("structured_output")
         if structured:
             validation = validate_research_manager_structured(structured)
             logger.info("[Orchestrator] Research Manager: used structured output")
         else:
-            content = result.get("content", "")
+            # 护栏: 兜底解析只喂末轮文字，防早轮草稿 JSON 污染提取
+            content = result.get("last_round_text") or result.get("content") or ""
             validation = validate_research_manager_output(content)
             logger.info("[Orchestrator] Research Manager: fell back to text parsing")
 
@@ -1245,6 +1507,10 @@ class MultiAgentOrchestrator:
                 f"[Orchestrator] Risk Manager LLM failed: {result.get('error')}"
             )
             return None
+
+        # 2a-2: 叙述全文与耗时带回（直播事件用）
+        self._riskmgr_narrative = result.get("content") or None
+        self._riskmgr_duration_ms = result.get("duration_ms", 0)
 
         structured = result.get("structured_output")
         if structured:
@@ -1485,6 +1751,11 @@ class MultiAgentOrchestrator:
             )
             return None
 
+        # 2a-2: 叙述全文与耗时带回（直播事件用）。注意须在下方
+        # `result = validation["json_data"]` 覆盖前取值。
+        self._trader_narrative = result.get("content") or None
+        self._trader_duration_ms = result.get("duration_ms", 0)
+
         structured = result.get("structured_output")
         if structured:
             # F7 fix: 注入 _current_price 到 validation 之前
@@ -1493,7 +1764,8 @@ class MultiAgentOrchestrator:
             validation = validate_trader_structured(structured)
             logger.info("[Orchestrator] Trader: used structured output")
         else:
-            content = result.get("content", "")
+            # 护栏: 兜底解析只喂末轮文字，防早轮草稿 JSON 污染提取
+            content = result.get("last_round_text") or result.get("content") or ""
             validation = validate_trader_output(content)
             logger.info("[Orchestrator] Trader: fell back to text parsing")
 

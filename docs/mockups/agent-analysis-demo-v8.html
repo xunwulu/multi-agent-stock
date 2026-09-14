@@ -358,6 +358,7 @@ const KEY_CN = {
   tech_key_observations:'技术面关键观察', fund_key_strengths:'基本面核心优势', fund_key_risks:'基本面核心风险',
   news_key_events:'新闻面关键事件', news_risk_events:'新闻面风险事件',
   recommendation:'投资建议', stock_type:'股票类型', weight_rationale:'权重说明',
+  rm_summary:'经理总结', risk_rationale:'风险评判理由', risk_scoring_breakdown:'风险评分明细',
   debate_winner:'辩论胜方', debate_delta:'辩论分差', debate_rationale:'评判理由',
   strongest_bull_point:'看多最强论点', strongest_bear_point:'看空最强论点', risk_warnings:'风险提示',
   synthesis_method:'综合方法', risk_winner:'风险辩论胜方', key_opportunities:'核心机会',
@@ -414,7 +415,7 @@ const GROUPS = {
     '建议与类型': /recommendation|stock_type|weight_rationale|risk_warnings/,
   },
   riskVerdict: {
-    '风险评级': /risk_level|risk_score|risk_winner/,
+    '风险评级': /risk_level|risk_score|risk_winner|risk_rationale|risk_scoring_breakdown/,
     '风险与机会': /key_risks|key_opportunities/,
     '操作建议': /position_suggestion|stop_loss_suggestion/,
   },
@@ -931,9 +932,9 @@ function techCard(j) {
     return `<div class="prow"><span class="pl">${cn(n)}</span><div class="pbar"><div class="pfill" style="width:${p}%;background:${clr}"></div></div><span class="pv">${p}% → ${s.target_price}</span></div>`;
   }).join('')}` : ''}
   <div class="chips">
-    <div class="chip"><span class="cl">盈亏比</span><span class="cv ${parseFloat(String(j.risk_reward_ratio).split(':')[1]||0)<1?'bad':'warn'}">${j.risk_reward_ratio}</span></div>
-    <div class="chip"><span class="cl">MACD</span><span class="cv">${cn(j.macd_signal)}</span></div>
-    <div class="chip"><span class="cl">KDJ</span><span class="cv">${cn(j.kdj_signal)}</span></div>
+    <div class="chip"><span class="cl">盈亏比</span><span class="cv ${parseFloat(String(j.risk_reward_ratio).split(':')[1]||0)<1?'bad':'warn'}">${j.risk_reward_ratio==null?'-':j.risk_reward_ratio}</span></div>
+    <div class="chip"><span class="cl">MACD</span><span class="cv">${j.macd_signal==null?'-':cn(j.macd_signal)}</span></div>
+    <div class="chip"><span class="cl">KDJ</span><span class="cv">${j.kdj_signal==null?'-':cn(j.kdj_signal)}</span></div>
   </div>`;
 }
 function fundCard(j) {
@@ -943,7 +944,7 @@ function fundCard(j) {
   <div class="sc" data-cu="${j.score}">${FX.countup?0:j.score}<small>${cn(j.direction)||cn(j.verdict)||''}</small></div>
   <div class="sect">核心结论</div>
   <ul class="obs">
-    <li><b>估值:</b> ${j.valuation_grade} — PE ${j.pe_ttm}(${j.pe_percentile||'-'}) / PB ${j.pb}</li>
+    <li><b>估值:</b> ${j.valuation_grade||'-'} — PE ${j.pe_ttm==null?'-':j.pe_ttm}(${j.pe_percentile||'-'}) / PB ${j.pb==null?'-':j.pb}</li>
     ${dcf.intrinsic_value ? `<li><b>DCF:</b> 内在 ${dcf.intrinsic_value}${dcf.dcf_upside_pct?`，低估 ${dcf.dcf_upside_pct}`:''}</li>`:''}
     ${strengths.map(s=>`<li style="color:var(--ok)">✓ ${s}</li>`).join('')}
     ${risks.map(r=>`<li style="color:var(--danger)">✗ ${r}</li>`).join('')}

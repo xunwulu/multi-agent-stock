@@ -1,7 +1,7 @@
 # v8 全文展示升级 — 设计文档
 
-> 日期: 2026-09-10 | 状态: 船长已拍板 6 项，全部实施完成
-> 范围: docs/mockups/agent-analysis-demo-v8.html（纯前端，后端补漏归入第二阶段）
+> 日期: 2026-09-10 | 状态: 船长已拍板 6 项，全部实施完成；第二阶段后端直播化 2026-09-14 完成并真跑验收（见 §七）
+> 范围: docs/mockups/agent-analysis-demo-v8.html（纯前端）+ 第二阶段后端三件套
 
 ## 〇、追加拍板（2026-09-10 第二轮，验收反馈）
 
@@ -82,9 +82,53 @@
 5. 总览页长文本（如止损建议 158 字）跨列全文块
 6. 降级 fixture 重放不报错；v7 页面不受影响
 
-## 七、第二阶段后端备忘（本次不做）
+## 七、第二阶段后端备忘（2026-09-14 已全部完成）
 
-1. orchestrator merge 白名单捡回：RM 的 summary、风险经理的 risk_rationale/summary/scoring_breakdown
-2. _run_research_manager/_run_risk_manager/_run_trader 返回时带回 result.content（叙述文本）
-3. RiskLoop 接 MessageBus/persist_dir（听证发言进 JSONL，直播信号用）
-4. 完成后 agent_done.content 填真值 → 前端「分析推理」段自动出现（零前端改动）
+1. orchestrator merge 白名单捡回：RM 的 summary → `combined.rm_summary`；
+   风险经理的 risk_rationale/scoring_breakdown → `combined.risk_rationale`/`risk_scoring_breakdown`
+   （summary 与 RM 撞名故不入 combined；前端 KEY_CN 已补 3 个中文名）
+2. 三个 _run_* 经理 stash 叙述全文（`self._*_narrative`）→ agent_done.content 带回；
+   实测三位经理只交表格不写作文（content=None 属诚实结果），管道留作未来 prompt 升级
+3. RiskLoop 接 MessageBus/persist_dir：听证发言落 JSONL（msg_type=risk）
+4. 直播三件套落地：
+   - `src/infra/progress_emitter.py`：契约信封（seq/ts/run_id）+ progress.jsonl 追加 + 快照重写 + normalize_result
+   - agent_loop.on_event → 心跳（迭代/工具计时/重试通知）；orchestrator.on_event → 六阶段事件全发射
+   - `scripts/worker_server.py`（FastAPI:8766）：POST /analyze 起线程 + GET /progress 轮询 + 起飞页
+5. 真跑验收（2026-09-14 工商银行）：283s / 47 事件 / 六阶段全绿零降级；
+   契约重放深度==run_done 终态；live 页面 10/10、mock 回放 7/7、pytest 140/140
+6. 遗留观察：分析师叙述全文长度随模型当次行为波动（本轮仅 28 字，9 月 8 日跑批为 500-4000 字）；
+   若要稳定全文，可后续在分析师 skill 里加一句「提交前先写一段结论文字」（产品决策，未动）
+
+## 八、追加拍板（2026-09-14 第三轮：经理也要写作文）
+
+船长拍板「作文也要写」→ 三位经理 skill（research-manager / risk-manager / trader）
+各加两条：
+1. **推理文字要求（必写）**: 调用 submit_analysis 的同一条回复中，先写 200~300 字
+   推理（评判/裁决/决策，各按职责定制题目），再交表格 → agent_done.content 自动带回，
+   前端「分析推理」段零改动自动出现
+2. **防漏填保险**: 作文不能替代表格——表格所有字段仍须完整填写
+   （验证时发现副作用苗头：模型把论点写进作文后表格漏填 2 字段，加保险后消除）
+
+真 LLM 验证（tests/_tmp_verify_narrative.py，一句话假辩论输入）：三经理均交作文
+（88~414 字，输入薄则作文短，真实跑批数据丰满时更长），表格字段齐全。
+
+## 九、追加拍板（2026-09-14 第四轮：分析师全文稳定化，D 方案两步走）
+
+三方会审（架构师/代码审查员/产品顾问）一致推荐 D = B(管道保全) + A(试卷要求)：
+
+**B 步：agent_loop 跨轮累积（~30 行）**
+- 旧缺陷：`text_parts` 每轮清零——模型边查数据边写的推理被丢弃（token 已付费却倒掉）
+- 改法：`all_text_parts` 跨轮累积 → `content`（轮间空行分隔、跳空块、2 万字封顶保尾）；
+  另存 `last_round_text`（仅末轮）专供 JSON 兜底解析——**护栏**：早轮草稿 JSON
+  片段永远污染不到 `_extract_json`（审查员查实的中低频高害风险，此护栏完全消除）
+- orchestrator 四处文本兜底（分析师×2/RM/trader）改喂 `last_round_text or content`
+- 影响面：经理（≤2轮）与辩手（单轮）语义不变；分析师 content 从"末轮文字"变"全程叙述"
+
+**A 步：试卷要求（3 个 skill + 3 条用户消息）**
+- skill 输出方式段：各加 200~300 字结论要求（技术/基本面/新闻各按职责定题）+ 防漏填保险
+- **关键教训**：只改 skill 时真调一次技术分析师仍 0 字——工具循环模式下系统提示词的
+  作文要求被工具惯性稀释；把作文要求同时写进**用户消息**（最靠近交表时刻、权重最高）
+  后，真调 609 字成文 + 35 字段表格齐全 ✓
+
+验证：pytest 142/142（含 2 条新护栏单测：早轮草稿 JSON 隔离、累积封顶保尾）；
+真调技术分析师 609 字成文。回滚：B 删累积列表即可，A 删提示词两行。

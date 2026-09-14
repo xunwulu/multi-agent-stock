@@ -12,11 +12,26 @@ import random
 import threading
 import time
 import logging
+from typing import Callable, Optional
 
 import anthropic
 import httpx
 
 logger = logging.getLogger(__name__)
+
+# 跨轮累积文字的总量上限（字符）：展示用"分析轨迹+成文"封顶，防 progress 文件膨胀。
+# 超限时保留末尾（最接近结论的部分），开头标注已截断。
+_ACCUM_TEXT_MAX = 20000
+
+
+def _notify(on_event: Optional[Callable], payload: dict):
+    """安全上报进度事件：无回调或回调异常都不影响主流程。"""
+    if on_event is None:
+        return
+    try:
+        on_event(payload)
+    except Exception as e:  # pragma: no cover - 防御性
+        logger.debug(f"[Agent Loop] on_event callback failed: {e}")
 
 
 class TokenBucketRateLimiter:
@@ -126,7 +141,8 @@ class AgentLoop:
         self.rate_limiter = _get_rate_limiter(config)
         self._first_call_succeeded = False
 
-    def _call_with_retry(self, kwargs: dict):
+    def _call_with_retry(self, kwargs: dict, on_event: Optional[Callable] = None,
+                         iteration: int = 0):
         """
         带指数退避的 API 调用
 
@@ -158,6 +174,10 @@ class AgentLoop:
                     f"{self.max_retries}): {e}. "
                     f"Retrying in {sleep_time:.1f}s"
                 )
+                _notify(on_event, {
+                    "kind": "retry", "iteration": iteration,
+                    "retry_note": f"服务端繁忙(404)，{sleep_time:.0f}秒后自动重试",
+                })
                 time.sleep(sleep_time)
             except self.RETRYABLE_ERRORS as e:
                 if attempt >= self.max_retries:
@@ -173,6 +193,10 @@ class AgentLoop:
                     f"{self.max_retries}): {type(e).__name__}: {e}. "
                     f"Retrying in {sleep_time:.1f}s"
                 )
+                _notify(on_event, {
+                    "kind": "retry", "iteration": iteration,
+                    "retry_note": f"API限流({type(e).__name__})，{sleep_time:.0f}秒后自动重试",
+                })
                 time.sleep(sleep_time)
 
     def run(
@@ -183,6 +207,7 @@ class AgentLoop:
         dispatch_map: dict[str, callable] | None = None,
         max_iterations: int | None = None,
         submit_tool_name: str | None = None,
+        on_event: Optional[Callable] = None,
     ) -> dict:
         """
         运行 Agent 循环
@@ -195,6 +220,9 @@ class AgentLoop:
             max_iterations: 最大循环次数（覆盖默认值）
             submit_tool_name: 提交工具名（如 "submit_analysis"）。
                 LLM 调用此工具时，捕获 input 作为 structured_output 并结束循环。
+            on_event: 进度回调（可选）。收到原始进度 dict:
+                {"kind": "iteration"|"tool"|"retry", ...}，
+                由上层包装成契约事件（agent_heartbeat）。
 
         Returns:
             {
@@ -212,6 +240,18 @@ class AgentLoop:
         start_time = time.time()
         total_tool_calls = 0
 
+        # 跨轮累积的全部文字（展示用：分析轨迹 + 最终成文，不再只留末轮）
+        all_text_parts: list[str] = []
+
+        def _accumulated_text() -> str | None:
+            """全部轮次文字拼接（轮间空行分隔，超限保尾）。"""
+            txt = "\n\n".join(all_text_parts).strip()
+            if not txt:
+                return None
+            if len(txt) > _ACCUM_TEXT_MAX:
+                txt = "(前文已截断)\n\n" + txt[-_ACCUM_TEXT_MAX:]
+            return txt
+
         # 可观测性: 记录每轮 token 用量
         token_log = []
         total_input = 0
@@ -224,6 +264,11 @@ class AgentLoop:
         for i in range(max_iter):
             iteration = i + 1
             logger.info(f"[Agent Loop] Iteration {iteration}/{max_iter}")
+            _notify(on_event, {
+                "kind": "iteration", "iteration": iteration,
+                "max_iterations": max_iter,
+                "elapsed_ms": int((time.time() - start_time) * 1000),
+            })
 
             try:
                 kwargs = {
@@ -235,13 +280,16 @@ class AgentLoop:
                 if api_tools:
                     kwargs["tools"] = api_tools
 
-                response = self._call_with_retry(kwargs)
+                response = self._call_with_retry(
+                    kwargs, on_event=on_event, iteration=iteration
+                )
 
             except Exception as e:
                 logger.error(f"[Agent Loop] API error (retries exhausted): {e}")
                 return {
                     "success": False,
-                    "content": None,
+                    "content": _accumulated_text(),
+                    "last_round_text": None,
                     "structured_output": None,
                     "tool_calls": total_tool_calls,
                     "iterations": iteration,
@@ -293,6 +341,10 @@ class AgentLoop:
                 elif block.type == "tool_use":
                     tool_uses.append(block)
 
+            # 跨轮累积：本轮有文字则并入轨迹（展示用），不再丢弃
+            if text_parts:
+                all_text_parts.append("\n".join(text_parts))
+
             if stop_reason != "tool_use" or not tool_uses:
                 duration_ms = int((time.time() - start_time) * 1000)
                 final_text = "\n".join(text_parts)
@@ -302,7 +354,8 @@ class AgentLoop:
                 )
                 return {
                     "success": True,
-                    "content": final_text,
+                    "content": _accumulated_text(),
+                    "last_round_text": final_text if final_text else None,
                     "structured_output": None,
                     "tool_calls": total_tool_calls,
                     "iterations": iteration,
@@ -328,9 +381,11 @@ class AgentLoop:
                             f"fields={list(tu.input.keys())[:10]}"
                         )
                         duration_ms = int((time.time() - start_time) * 1000)
+                        _last_rt = "\n".join(text_parts)
                         return {
                             "success": True,
-                            "content": "\n".join(text_parts),
+                            "content": _accumulated_text(),
+                            "last_round_text": _last_rt if _last_rt else None,
                             "structured_output": tu.input,
                             "tool_calls": total_tool_calls + 1,
                             "iterations": iteration,
@@ -360,7 +415,15 @@ class AgentLoop:
 
                 if dispatch_map and tool_name in dispatch_map:
                     try:
+                        _t0 = time.time()
                         result = dispatch_map[tool_name](**tool_input)
+                        _tool_ms = int((time.time() - _t0) * 1000)
+                        _notify(on_event, {
+                            "kind": "tool", "iteration": iteration,
+                            "max_iterations": max_iter, "tool": tool_name,
+                            "tool_status": "ok", "duration_ms": _tool_ms,
+                            "elapsed_ms": int((time.time() - start_time) * 1000),
+                        })
 
                         try:
                             from src.infra.quality import validate_tool_output
@@ -408,7 +471,8 @@ class AgentLoop:
         )
         return {
             "success": False,
-            "content": "\n".join(text_parts) if text_parts else None,
+            "content": _accumulated_text(),
+            "last_round_text": "\n".join(text_parts) if text_parts else None,
             "structured_output": None,
             "tool_calls": total_tool_calls,
             "iterations": max_iter,
