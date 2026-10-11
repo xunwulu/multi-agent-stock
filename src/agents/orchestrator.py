@@ -82,6 +82,65 @@ RISKMGR_EVENT_KEYS = (
     "risk_rationale", "risk_scoring_breakdown",
 )
 
+# --- W2 M4: 机构持仓研究背景注入（计划 5.7） ---
+# research_context 由派发方传入（主仓入队时写的 context_json 快照）。
+# 三路分析师不注入——保持自主取数不受污染；只有 多方/空方/研究经理/
+# 风险经理/交易员 的输入提示词会收到这段前言与首句硬指令。
+
+_CONTEXT_PREFIX_TITLE = "=== 机构持仓研究背景（派发时快照，引用数字以此为准） ==="
+
+_FIRST_SENTENCE_RULE = (
+    "最终报告第一句必须直接以{lead}口径开头并围绕该主结论展开；"
+    "不许复述数字表；不许自造与主结论冲突的结论"
+)
+
+
+def build_context_prefix(ctx: dict | None) -> str:
+    """把 research_context 渲染成固定前言块（拼在各 agent 提示词头部）。
+
+    逐字段从 dict 取，缺字段跳过该行；一个可用字段都没有时返回空串
+    （零注入，与不传 research_context 完全等价）。
+    """
+    if not ctx:
+        return ""
+    lines = [_CONTEXT_PREFIX_TITLE]
+    if ctx.get("headline"):
+        lines.append(f"主结论（现价相对机构成本）: {ctx['headline']}")
+    if ctx.get("cost_low") is not None and ctx.get("cost_high") is not None:
+        lines.append(f"机构成本带: {ctx['cost_low']} ~ {ctx['cost_high']} 元")
+    if ctx.get("latest_price") is not None:
+        lines.append(f"现价快照: {ctx['latest_price']} 元")
+    if ctx.get("institution_name"):
+        lines.append(f"机构: {ctx['institution_name']}")
+    if len(lines) == 1:
+        return ""
+    return "\n".join(lines) + "\n\n"
+
+
+def build_first_sentence_rule(ctx: dict | None) -> str:
+    """经理/交易员提示词尾部的首句硬指令（headline 持平时用持平口径）。"""
+    if not ctx:
+        return ""
+    if "持平" in (ctx.get("headline") or ""):
+        lead = "『和机构成本基本持平』"
+    else:
+        lead = "『比机构成本 便宜/贵X%』或『和机构成本基本持平』"
+    return "硬性要求：" + _FIRST_SENTENCE_RULE.format(lead=lead)
+
+
+class RunAborted(Exception):
+    """W3 预留：运行中取消。cancel_check 在阶段边界返回 True 时抛出。
+
+    只允许穿透到 run_analysis 顶层 except（在那里转成 error='aborted'
+    的正常返回结构），绝不漏到调用方——对外永不抛的契约不变。
+    W2 阶段无人传 cancel_check，恒不触发。
+    """
+
+    def __init__(self, stage: int = 0, reason: str = ""):
+        super().__init__(reason or f"aborted at stage {stage}")
+        self.stage = stage
+        self.reason = reason
+
 
 def _truncate_inject_data(data: dict) -> str:
     """Serialize pre-fetched data, truncating if too large for context."""
@@ -105,6 +164,9 @@ class MultiAgentOrchestrator:
         self._riskmgr_duration_ms = 0
         self._trader_narrative = None
         self._trader_duration_ms = 0
+        # W2 M4: 研究背景前言 + 首句硬指令（None 时均为空串=零注入）
+        self._context_prefix = ""
+        self._first_sentence_rule = ""
 
     def run_analysis(
         self,
@@ -114,9 +176,11 @@ class MultiAgentOrchestrator:
         skip_debate: bool = False,
         on_event: callable | None = None,
         stock_name: str = "",
+        research_context: dict | None = None,
+        cancel_check: callable | None = None,
     ) -> dict:
         """
-        运行完整的分析流程
+        运行完整的分析流程（对外永不抛：取消等异常在顶层转正常返回）
 
         Args:
             stock_code: 股票代码（如 300033.SZ）
@@ -126,6 +190,13 @@ class MultiAgentOrchestrator:
             on_event: 直播事件回调（可选）on_event(type, stage, data, agent=None)，
                 事件契约 v1，由上层(EventEmitter)包装信封落盘
             stock_name: 股票名称（可选，直播事件展示用）
+            research_context: 机构持仓研究背景快照（可选，None=零行为变化）。
+                非 None 时渲染成固定前言块注入 多方/空方/研究经理/风险经理/
+                交易员 的输入提示词（三路分析师保持自主取数不受污染），
+                并给经理与交易员提示词尾部加首句硬指令（W2 计划 5.7）
+            cancel_check: 取消检查回调（可选，W3 预留口，W2 恒不传）。
+                各阶段边界调用一次，返回 True 时抛 RunAborted 并在本方法
+                顶层转成正常返回 {"error": "aborted"}
 
         Returns:
             {
@@ -136,8 +207,51 @@ class MultiAgentOrchestrator:
                 "combined_report": {...},
                 "success": True/False,
                 "duration_ms": ...,
+                "error": None,            # "aborted" = 被 cancel_check 取消
             }
         """
+        try:
+            return self._run_analysis_core(
+                stock_code,
+                max_iterations=max_iterations,
+                debate_rounds=debate_rounds,
+                skip_debate=skip_debate,
+                on_event=on_event,
+                stock_name=stock_name,
+                research_context=research_context,
+                cancel_check=cancel_check,
+            )
+        except RunAborted as abort:
+            # 对外永不抛契约：取消只在这里转成正常返回结构
+            logger.info(
+                f"[Orchestrator] Run aborted (stage={abort.stage},"
+                f" reason={abort.reason}) -> error='aborted'"
+            )
+            return {
+                "stock_code": stock_code,
+                "state": {},
+                "tech_report": {},
+                "fund_report": {},
+                "news_report": {},
+                "combined_report": {},
+                "degradation_summary": {"aborted": True},
+                "success": False,
+                "duration_ms": 0,
+                "error": "aborted",
+            }
+
+    def _run_analysis_core(
+        self,
+        stock_code: str,
+        max_iterations: int = 10,
+        debate_rounds: int = 2,
+        skip_debate: bool = False,
+        on_event: callable | None = None,
+        stock_name: str = "",
+        research_context: dict | None = None,
+        cancel_check: callable | None = None,
+    ) -> dict:
+        """六阶段编排本体（run_analysis 的实现；签名/语义见其 docstring）。"""
         start_time = time.time()
         # 第3刀: 开启请求级缓存(同次分析内数据不变, 跨股票清空), 减半 Tushare 调用
         enable_cache()
@@ -166,6 +280,23 @@ class MultiAgentOrchestrator:
         self._riskmgr_duration_ms = 0
         self._trader_narrative = None
         self._trader_duration_ms = 0
+        # W2 M4: 渲染前言与首句硬指令（research_context=None 时双双为空串，
+        # 六阶段编排逻辑零变化）
+        self._context_prefix = build_context_prefix(research_context)
+        self._first_sentence_rule = build_first_sentence_rule(research_context)
+
+        def _check_cancel(stage: int) -> None:
+            """W3 预留：阶段边界取消检查（cancel_check=None 时零开销）。"""
+            if cancel_check is None:
+                return
+            try:
+                aborted = bool(cancel_check())
+            except Exception as e:
+                logger.warning(f"[Orchestrator] cancel_check raised (ignored): {e}")
+                return
+            if aborted:
+                raise RunAborted(stage=stage,
+                                 reason=f"cancel_check=True at stage {stage}")
 
         def _emit(etype: str, stage: int, data: dict, agent: str | None = None):
             if on_event is None:
@@ -237,6 +368,7 @@ class MultiAgentOrchestrator:
         # Step 1+2: 并行运行技术分析师和基本面分析师
         import concurrent.futures
 
+        _check_cancel(1)
         logger.info(
             "[Orchestrator] Phase 1: Running technical + fundamentals + news "
             "analysts in parallel..."
@@ -417,6 +549,7 @@ class MultiAgentOrchestrator:
             return bool(json_data.get("scoring_breakdown"))
 
         # Step 5: 看多/看空辩论 (Phase 2)
+        _check_cancel(2)
         debate_result = None
         t_stage2 = time.time()
         if (not skip_debate and time.time() <= deadline
@@ -434,7 +567,12 @@ class MultiAgentOrchestrator:
                 }, agent=role)
 
             try:
-                debate = DebateLoop(self.config, persist_dir=self.persist_dir)
+                # W2 M4: 多方/空方的输入提示词头部拼研究背景前言
+                debate = DebateLoop(
+                    self.config,
+                    persist_dir=self.persist_dir,
+                    context_prefix=self._context_prefix,
+                )
                 debate_result = debate.run(
                     stock_code=stock_code,
                     tech_report=tech_json,
@@ -470,6 +608,7 @@ class MultiAgentOrchestrator:
             })
 
         # Step 6: 综合汇总
+        _check_cancel(3)
         combined = self._synthesize_reports(tech_json, fund_json, news_json)
 
         # 如果有辩论结果，附加辩论信息并通过 Research Manager 评估
@@ -483,7 +622,9 @@ class MultiAgentOrchestrator:
             t_stage3 = time.time()
             _emit("stage_started", 3, {"label": STAGE_LABELS[3]})
             rm_result = self._run_research_manager(
-                stock_code, tech_json, fund_json, debate_result, combined, news_json
+                stock_code, tech_json, fund_json, debate_result, combined, news_json,
+                context_prefix=self._context_prefix,
+                first_sentence_rule=self._first_sentence_rule,
             )
             if rm_result:
                 # 用 LLM 评判结果覆盖确定性评分
@@ -545,6 +686,7 @@ class MultiAgentOrchestrator:
         state.set("research_summary", combined)
 
         # Step 6a: 风险辩论层 (Phase 4-5)
+        _check_cancel(4)
         risk_result = None
         risk_manager_data = None
         if (debate_result and time.time() <= deadline
@@ -587,10 +729,13 @@ class MultiAgentOrchestrator:
                 )
 
                 # Phase 5: 风险经理评估
+                _check_cancel(5)
                 t_stage5 = time.time()
                 _emit("stage_started", 5, {"label": STAGE_LABELS[5]})
                 risk_manager_data = self._run_risk_manager(
-                    stock_code, combined, risk_result, reports_summary
+                    stock_code, combined, risk_result, reports_summary,
+                    context_prefix=self._context_prefix,
+                    first_sentence_rule=self._first_sentence_rule,
                 )
                 if risk_manager_data:
                     # 用风险经理结果覆盖评分
@@ -642,6 +787,9 @@ class MultiAgentOrchestrator:
                         "duration_ms": int((time.time() - t_stage5) * 1000),
                         "skipped": True, "reason": "风险经理评估失败",
                     })
+            except RunAborted:
+                # 取消不是故障：穿透到 run_analysis 顶层转 error='aborted'
+                raise
             except Exception as e:
                 logger.warning(f"[Orchestrator] Risk layer failed: {e}, continuing without risk adjustment")
                 risk_result = None
@@ -673,12 +821,15 @@ class MultiAgentOrchestrator:
         )
 
         # Step 6b: Trader 交易决策 (第4刀: 超时跳过 LLM 走确定性兜底)
+        _check_cancel(6)
         t_stage6 = time.time()
         _emit("stage_started", 6, {"label": STAGE_LABELS[6]})
         if time.time() <= deadline:
             trader_result_data = self._run_trader(
                 stock_code, tech_json, fund_json, debate_result, combined,
-                news_json=news_json, risk_result=risk_result
+                news_json=news_json, risk_result=risk_result,
+                context_prefix=self._context_prefix,
+                first_sentence_rule=self._first_sentence_rule,
             )
         else:
             logger.warning(
@@ -1291,6 +1442,8 @@ class MultiAgentOrchestrator:
         debate_result: dict,
         baseline_combined: dict,
         news_json: dict = None,
+        context_prefix: str = "",
+        first_sentence_rule: str = "",
     ) -> dict | None:
         """
         LLM-based Research Manager: 评估辩论质量并调整评分。
@@ -1301,6 +1454,8 @@ class MultiAgentOrchestrator:
             fund_json: 基本面分析师结构化输出
             debate_result: 辩论结果
             baseline_combined: 确定性基准综合报告
+            context_prefix: 研究背景前言（W2 M4 注入；空串=零变化）
+            first_sentence_rule: 首句硬指令（同上，拼在提示词尾部）
 
         Returns:
             Research Manager 的 JSON 输出，失败时返回 None
@@ -1323,6 +1478,7 @@ class MultiAgentOrchestrator:
         news_score = baseline_combined.get("news_score")
 
         user_message = (
+            f"{context_prefix}"
             f"股票: {stock_code}\n\n"
             f"=== 分析师报告摘要 ===\n{reports_summary}\n\n"
             f"=== 辩论记录 ===\n{debate_transcript}\n\n"
@@ -1334,6 +1490,8 @@ class MultiAgentOrchestrator:
             f"基准方向: {baseline_dir}\n\n"
             f"请基于辩论记录评判胜负，调整评分和方向，输出 JSON。"
         )
+        if first_sentence_rule:
+            user_message += f"\n\n{first_sentence_rule}"
 
         messages = [{"role": "user", "content": user_message}]
 
@@ -1447,9 +1605,15 @@ class MultiAgentOrchestrator:
         combined: dict,
         risk_result: dict,
         reports_summary: str,
+        context_prefix: str = "",
+        first_sentence_rule: str = "",
     ) -> dict | None:
         """
         LLM-based Risk Manager: 评估三方风险辩论，输出风险等级和评分调整。
+
+        Args:
+            context_prefix: 研究背景前言（W2 M4 注入；空串=零变化）
+            first_sentence_rule: 首句硬指令（同上，拼在提示词尾部）
 
         Returns:
             Risk Manager 的 JSON 输出，失败时返回 None
@@ -1466,6 +1630,7 @@ class MultiAgentOrchestrator:
         risk_level = combined.get("risk_level", "N/A")
 
         user_message = (
+            f"{context_prefix}"
             f"股票: {stock_code}\n\n"
             f"=== 研究经理综合研判 ===\n"
             f"综合评分: {baseline_score}\n"
@@ -1476,6 +1641,8 @@ class MultiAgentOrchestrator:
             f"=== 风险辩论记录 ===\n{risk_transcript}\n\n"
             f"请评估三方风险辩论，输出风险等级和评分调整建议。"
         )
+        if first_sentence_rule:
+            user_message += f"\n\n{first_sentence_rule}"
 
         messages = [{"role": "user", "content": user_message}]
         submit_tool = get_submit_tool("risk_manager")
@@ -1581,6 +1748,8 @@ class MultiAgentOrchestrator:
         combined: dict,
         news_json: dict | None = None,
         risk_result: dict | None = None,
+        context_prefix: str = "",
+        first_sentence_rule: str = "",
     ) -> dict | None:
         """
         LLM-based Trader: 将综合研判转化为可执行交易决策。
@@ -1593,6 +1762,8 @@ class MultiAgentOrchestrator:
             combined: 综合报告（含 Research Manager 评判 + 风险经理调整）
             news_json: 新闻分析师结构化输出（可能为 None）
             risk_result: 风险辩论结果（可能为 None）
+            context_prefix: 研究背景前言（W2 M4 注入；空串=零变化）
+            first_sentence_rule: 首句硬指令（同上，拼在提示词最尾部）
 
         Returns:
             Trader 的 JSON 输出，失败时返回 None
@@ -1689,6 +1860,7 @@ class MultiAgentOrchestrator:
                 )
 
         user_message = (
+            f"{context_prefix}"
             f"股票: {stock_code}\n"
             f"当前股价: {current_price_str}元\n\n"
             f"=== Research Manager 综合研判 ===\n{rm_summary}\n\n"
@@ -1718,6 +1890,10 @@ class MultiAgentOrchestrator:
             user_message += (
                 "强烈建议 action=watch 或 action=sell，除非有明确的重组/摘帽预期。"
             )
+
+        # W2 M4: 首句硬指令拼在最尾部（有研究背景快照时才注入）
+        if first_sentence_rule:
+            user_message += f"\n\n{first_sentence_rule}"
 
         messages = [{"role": "user", "content": user_message}]
 

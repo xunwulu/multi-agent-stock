@@ -282,15 +282,19 @@ class DbQueue:
 
     # -- E4/E5 终态收尾（守卫 state='running'）--
 
-    # finish_run 允许写入的列白名单（防 SQL 注入：列名固定，只有值动态）
-    _FINISH_FIELDS = ("verdict", "score", "act", "summary", "confidence", "run_id")
+    # finish_run 允许写入的列白名单（防 SQL 注入：列名固定，只有值动态）。
+    # run_id/run_dir = AI 侧文件运行号与 output/live 下目录名（M4 起假研究
+    # 也产出旁听文件，两列恒成对写入；fields 传 None 即不写该列）
+    _FINISH_FIELDS = ("verdict", "score", "act", "summary", "confidence",
+                      "run_id", "run_dir")
 
     def finish_run(self, run_id: int, fields: Optional[Dict] = None) -> bool:
         """收尾置 done：finished_at / duration_s（按 started_at 现算）+ 结论列。
 
         duration_s 在同一条 UPDATE 里用表达式 now - started_at 计算
         （SQLite 的 SET 右侧可引用本行旧值），保持单语句短事务。
-        AI 侧文件运行号 run_id 文本列：M2 假研究可空，fields 里传 None 即不写。
+        AI 侧文件运行号 run_id / output/live 目录名 run_dir：fields 里
+        传 None 即不写该列（白名单之外的键静默忽略）。
         """
         now = int(time.time())
         fields = fields or {}

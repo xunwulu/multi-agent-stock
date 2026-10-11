@@ -37,15 +37,19 @@ class DebateLoop:
         )
     """
 
-    def __init__(self, config: dict, persist_dir: str | None = None):
+    def __init__(self, config: dict, persist_dir: str | None = None,
+                 context_prefix: str = ""):
         """
         Args:
             config: 模型配置 (同 AgentLoop)
             persist_dir: JSONL 日志输出目录 (可选)
+            context_prefix: 机构持仓研究背景前言（W2 M4 注入；
+                拼在多方/空方每轮输入消息头部；空串=零变化）
         """
         self.config = config
         self.loop = AgentLoop(config)
         self.bus = MessageBus(persist_dir=persist_dir)
+        self.context_prefix = context_prefix
         # 信息增益追踪: 记录辩论中已出现的数字，用于分析每轮新增论据
         self._seen_numbers: set[str] = set()
 
@@ -623,6 +627,7 @@ class DebateLoop:
         if round_num == 1:
             # 第一轮: 看到完整报告，构建初始看多案例
             content = (
+                f"{self.context_prefix}"
                 f"请为股票 {stock_code} 构建看多论证。\n\n"
                 f"以下是分析师报告摘要:\n\n"
                 f"{reports_summary}\n\n"
@@ -634,6 +639,7 @@ class DebateLoop:
             history = self.bus.format_debate_history()
 
             content = (
+                f"{self.context_prefix}"
                 f"请为股票 {stock_code} 继续看多辩论。\n\n"
                 f"以下是分析师报告摘要:\n\n"
                 f"{reports_summary}\n\n"
@@ -656,6 +662,7 @@ class DebateLoop:
         if round_num == 1 and not history.strip():
             # 第一轮: 看到完整报告 + Bull 的论点
             content = (
+                f"{self.context_prefix}"
                 f"请为股票 {stock_code} 构建看空论证。\n\n"
                 f"以下是分析师报告摘要:\n\n"
                 f"{reports_summary}\n\n"
@@ -665,6 +672,7 @@ class DebateLoop:
         else:
             # 后续轮次: 看到完整历史 + Bull 最新论点
             content = (
+                f"{self.context_prefix}"
                 f"请为股票 {stock_code} 继续看空辩论。\n\n"
                 f"以下是分析师报告摘要:\n\n"
                 f"{reports_summary}\n\n"
