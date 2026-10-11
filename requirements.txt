@@ -5,3 +5,8 @@ tushare
 pandas
 numpy
 python-dotenv
+# W2 M2 补全：worker_server.py 的四个隐式依赖（2026-10-10 本机 pip show 实测版本）
+fastapi>=0.135.2
+uvicorn>=0.42.0
+requests>=2.32.5
+httpx>=0.28.1
