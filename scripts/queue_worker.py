@@ -114,17 +114,53 @@ FAKE_RESULT = {
     "confidence": 0.70,
 }
 
-# M4 假研究每阶段的发言 agent（取值必须在冻结信封的 agent 词表内：
-# 技术分析师|基本面分析师|新闻分析师|多方|空方|研究经理|激进派|中立派|
-# 保守派|风险经理|交易员）；每阶段恰好 2 条 agent_msg
+# M4c 假研究每阶段的出场表：(中文 agent 名, 轮次|None, 英文 role|None,
+# 结构化 json 键|None)。轮次/role 供主仓 _to_v8_events 译成 v8 的
+# speech_done(round, role)；json 键指向 FAKE_ROLE_JSON——v8 会议页角色卡
+# 吃结构化字段，瘦载荷（只有 text）会渲染成满屏 undefined（2026-10-15
+# 船长新华百货验收教训）。同角色的第二句也挂 json：v8 视图模型对
+# agent_done 取最后一条，瘦的第二句会把富 json 覆盖回 undefined。
+# 中文 agent 名必须在冻结信封词表内。
 STAGE_AGENTS = {
-    1: ("技术分析师", "基本面分析师"),
-    2: ("多方", "空方"),
-    3: ("研究经理", "研究经理"),
-    4: ("激进派", "保守派"),
-    5: ("风险经理", "风险经理"),
-    6: ("交易员", "交易员"),
+    1: (
+        ("技术分析师", None, "tech", "tech"),
+        ("基本面分析师", None, "fund", "fund"),
+        ("新闻分析师", None, "news", "news"),
+    ),
+    2: (
+        ("多方", 1, "bull", None),
+        ("空方", 1, "bear", None),
+        ("多方", 2, "bull", None),
+        ("空方", 2, "bear", None),
+    ),
+    3: (
+        ("研究经理", None, "rm", "rm"),
+        ("研究经理", None, "rm", "rm"),
+    ),
+    4: (
+        ("激进派", 1, "aggressive", None),
+        ("中立派", 1, "neutral", None),
+        ("保守派", 1, "conservative", None),
+    ),
+    5: (
+        ("风险经理", None, "riskmgr", "riskmgr"),
+        ("风险经理", None, "riskmgr", "riskmgr"),
+    ),
+    6: (
+        ("交易员", None, "trader", "trader"),
+        ("交易员", None, "trader", "trader"),
+    ),
 }
+
+# v8 会议页顶栏 ETA 吃 run_started.data.plan（est_ms_range 单位=秒，页内 x1000）
+FAKE_PLAN = [
+    {"stage": 1, "label": "三路侦察", "est_ms_range": [5, 15]},
+    {"stage": 2, "label": "多空对决", "est_ms_range": [4, 10]},
+    {"stage": 3, "label": "经理裁决", "est_ms_range": [2, 5]},
+    {"stage": 4, "label": "风险听证", "est_ms_range": [4, 10]},
+    {"stage": 5, "label": "风险裁决", "est_ms_range": [2, 5]},
+    {"stage": 6, "label": "交易员拍板", "est_ms_range": [2, 5]},
+]
 
 # 假研究占位发言（同一 agent 一阶段内说两句，取列表前两个）
 FAKE_SPEECHES = {
@@ -135,6 +171,10 @@ FAKE_SPEECHES = {
     "基本面分析师": [
         "基本面：营收增速平稳，经营现金流覆盖尚可（假研究占位发言）",
         "基本面：估值处于行业中位数附近，未见明显高估（假研究占位发言）",
+    ],
+    "新闻分析师": [
+        "新闻面：近期公告以例行披露为主，无重大利空（假研究占位发言）",
+        "新闻面：行业舆情中性偏暖，个股热度处于低位（假研究占位发言）",
     ],
     "多方": [
         "多方：机构成本就在下方，回踩即是机会（假研究占位发言）",
@@ -152,6 +192,10 @@ FAKE_SPEECHES = {
         "激进派：风险可控，当前位置可以左侧介入（假研究占位发言）",
         "激进派：回调即是分批建仓窗口（假研究占位发言）",
     ],
+    "中立派": [
+        "中立派：多空证据均不充分，倾向按兵不动（假研究占位发言）",
+        "中立派：等待量能或基本面任一方给出方向信号（假研究占位发言）",
+    ],
     "保守派": [
         "保守派：右侧信号未现，建议继续等待（假研究占位发言）",
         "保守派：仓位宜轻，止损纪律优先（假研究占位发言）",
@@ -164,6 +208,184 @@ FAKE_SPEECHES = {
         "交易员拍板：观望为主，等待趋势明朗（假研究占位发言）",
         "交易员拍板：不追高，低位挂单试探（假研究占位发言）",
     ],
+}
+
+# M4c 假研究角色结构化数据（v8 会议页角色卡渲染必需；键结构对齐
+# multi-agent-stock v8 黄金样本 events_demo.jsonl，枚举值取自其 cn 词典：
+# direction/verdict=neutral、macd_signal=death_cross、kdj_signal=neutral、
+# sentiment=neutral、insider_signal=neutral、risk_level=medium、action=watch）。
+# 数值为中性示范值，仅用于回看成色预演，不代表任何真实研究结论。
+FAKE_ROLE_JSON = {
+    "tech": {
+        "score": 52.5, "direction": "neutral",
+        "short_term_trend": "震荡", "mid_term_trend": "震荡",
+        "long_term_trend": "偏弱", "trend": "震荡筑底",
+        "strong_support": 8.20, "weak_support": 8.45,
+        "strong_resistance": 9.60, "weak_resistance": 9.10,
+        "stop_loss_price": 8.05,
+        "stop_loss_sell": "收盘跌破 8.05 减半仓，有效跌破 7.80 清仓（假研究占位）",
+        "latest_close": 8.80, "target_price": 9.60,
+        "risk_reward_ratio": "1:0.67",
+        "volume_signal": "缩量", "turnover_signal": "换手率 1.1%，低于近一年中位",
+        "macd_signal": "death_cross", "macd_divergence": "底部背离",
+        "kdj_signal": "neutral", "kdj_divergence": "无背离",
+        "rsi_signal": "neutral", "rsi_divergence": "无背离",
+        "kline_patterns": ["长下影线", "缩量十字星"],
+        "money_flow_signal": "净流出",
+        "money_flow_summary": "近 5 日主力资金净流出约 3000 万元（假研究占位）",
+        "relative_strength": "近 20 日跑输行业指数 1.2%（假研究占位）",
+        "industry_comparison": "行业内涨跌幅排名中游（假研究占位）",
+        "ma_pattern": "短期均线粘合，方向待选择",
+        "weekly_signal": "周线止跌企稳",
+        "resonance": "日线与周线信号均中性",
+        "scenario_analysis": {
+            "bull": {"trigger": "放量突破 9.10 弱阻力并站稳三日",
+                     "target_price": 9.60, "probability": 30},
+            "base": {"trigger": "8.45-9.10 区间震荡消化筹码",
+                     "target_price": 8.80, "probability": 50},
+            "bear": {"trigger": "缩量跌破 8.20 强支撑",
+                     "target_price": 7.60, "probability": 20},
+        },
+        "scoring_breakdown": {"trend_ma": 5, "signal_macd": 4, "signal_kdj": 5,
+                              "volume_price": 4, "risk_reward": 3},
+        "key_observations": [
+            "市场阶段判断：下行趋势后的震荡筑底期，量能持续萎缩，方向选择待确认（假研究占位）",
+            "关键信号冲突：MACD 零轴下方死叉但现底背离，短期偏空、中期存修复动能（假研究占位）",
+            "量价关系：反弹缩量、回调亦缩量，多空双方均无持续进攻意愿（假研究占位）",
+        ],
+        "failure_conditions": "收盘价放量跌破 8.20 则筑底形态失效（假研究占位）",
+        "data_freshness": {"kline_latest": "假研究占位", "daily_basic_latest": "假研究占位"},
+        "summary": "技术面处于震荡筑底阶段：均线粘合、量能萎缩、指标中性，支撑 8.20 / 阻力 9.60，方向需量能确认（假研究占位）",
+    },
+    "fund": {
+        "score": 55.0, "verdict": "neutral",
+        "profitability_grade": "B", "growth_grade": "B",
+        "safety_grade": "B+", "valuation_grade": "B",
+        "roe_latest": 6.2, "roe_trend": "stable",
+        "gross_margin": 28.5, "net_margin": 9.8,
+        "revenue_yoy": 3.8, "revenue_trend": "平稳",
+        "net_profit_yoy": 4.5, "profit_trend": "平稳",
+        "debt_ratio": 45.2, "debt_structure": "以经营性负债为主（假研究占位）",
+        "current_ratio": 1.8, "ocf_to_np_ratio": 1.15,
+        "free_cash_flow": "为正（假研究占位）", "fcf_margin": 8.5,
+        "cashflow_type": "经营造血型", "revenue_cash_ratio": 1.02,
+        "pe_ttm": 18.5, "pe_percentile": "45%", "peg": 1.9,
+        "pb": 1.8, "pb_percentile": "38%",
+        "valuation_summary": "估值处于行业中位数附近，未见明显高估或低估（假研究占位）",
+        "holder_num_change_pct": -1.5, "holder_trend": "stable",
+        "institutional_holders": 12, "institutional_ratio": 8.5,
+        "insider_signal": "neutral",
+        "insider_note": "近半年无重要股东增减持记录（假研究占位）",
+        "pledge_risk": "low", "pledge_note": "无股权质押（假研究占位）",
+        "key_strengths": [
+            "经营现金流稳定覆盖净利润，盈利质量健康（假研究占位）",
+            "资产负债结构稳健，流动比率 1.8 无短偿压力（假研究占位）",
+        ],
+        "key_risks": [
+            "营收与净利增速均回落至个位数，成长动能偏弱（假研究占位）",
+            "PEG 1.9 略高于 1.5，估值对增长的包容度一般（假研究占位）",
+        ],
+        "dcf_cross_check": {
+            "intrinsic_value": 9.5, "dcf_upside_pct": 8.0,
+            "sensitivity_note": "中性假设下 DCF 内在价值约 9.5 元，与现价接近（假研究占位）",
+            "pe_vs_dcf": "PE 与 DCF 视角基本互相印证，估值中性（假研究占位）",
+        },
+        "scenario_analysis": {
+            "bull": {"revenue_yoy": 8, "net_profit_yoy": 12, "eps_estimate": 0.62,
+                     "target_price": 10.2, "key_driver": "行业景气回升叠加费用率下降（假研究占位）"},
+            "base": {"revenue_yoy": 4, "net_profit_yoy": 5, "eps_estimate": 0.55,
+                     "target_price": 8.9, "key_driver": "增速维持个位数，估值不动（假研究占位）"},
+            "bear": {"revenue_yoy": 0, "net_profit_yoy": -8, "eps_estimate": 0.47,
+                     "target_price": 7.4, "key_driver": "需求走弱，估值与盈利双杀（假研究占位）"},
+        },
+        "summary": "基本面中性：盈利质量健康、估值居中、成长偏弱，无明显硬伤亦无突出亮点（假研究占位）",
+    },
+    "news": {
+        "score": 58.0, "direction": "neutral",
+        "news_analyzed": 12, "sentiment": "neutral", "sentiment_confidence": 0.6,
+        "market_attention": "low",
+        "key_events": [
+            {"event": "公司发布半年度业绩预告，符合市场预期（假研究占位）",
+             "type": "业绩披露", "direction": "neutral", "impact": "low",
+             "duration": "short_term", "source": "巨潮信息网", "datetime": "假研究占位"},
+            {"event": "行业主管部门发布指导意见，提及支持主业发展方向（假研究占位）",
+             "type": "行业政策", "direction": "positive", "impact": "low",
+             "duration": "mid_term", "source": "假研究占位", "datetime": "假研究占位"},
+            {"event": "股东会通过日常关联交易额度议案（假研究占位）",
+             "type": "公司治理", "direction": "neutral", "impact": "low",
+             "duration": "short_term", "source": "假研究占位", "datetime": "假研究占位"},
+        ],
+        "risk_events": [],
+        "positive_factors": ["行业政策面中性偏暖（假研究占位）"],
+        "negative_factors": ["个股舆情热度低，缺乏催化（假研究占位）"],
+        "key_observations": [
+            "新闻以例行披露为主，无重大利空或利好事件（假研究占位）",
+            "舆情热度处于低位，市场关注度待提升（假研究占位）",
+        ],
+        "scoring_breakdown": {"positive_events": 4, "negative_events": -2,
+                              "event_timeliness": 6, "event_impact": 3,
+                              "sentiment_alignment": 5, "risk_level": -2},
+        "summary": "新闻面中性：例行披露为主，无重大事件驱动，情绪与热度均处低位（假研究占位）",
+    },
+    "rm": {
+        "combined_score": 55.0, "combined_direction": "neutral",
+        "tech_score": 52.5, "tech_direction": "neutral",
+        "fund_score": 55.0, "fund_direction": "neutral",
+        "news_score": 58.0, "news_direction": "neutral",
+        "alignment": "aligned",
+        "debate_winner": "bear", "debate_delta": -2.0,
+        "debate_rounds": 2,
+        "debate_rationale": "空方对量能与套牢盘的质疑更具体，多方论据偏理念化，判定空方微弱胜出（假研究占位）",
+        "strongest_bull_point": "机构成本就在下方，回踩即是机会（假研究占位）",
+        "strongest_bear_point": "量能萎缩，缺乏持续上攻动能（假研究占位）",
+        "recommendation": "观望，等待量能与基本面任一方给出方向确认（假研究占位）",
+        "risk_warnings": ["量能持续萎缩，突破有效性存疑（假研究占位）",
+                          "上方套牢盘密集，反弹高度受限（假研究占位）"],
+        "stock_type": "震荡观望型",
+        "weight_rationale": "三面结论一致中性，等权合成（假研究占位）",
+        "summary": "三路侦察结论一致中性，辩论空方微弱胜出，综合 55 分维持观望（假研究占位）",
+    },
+    "riskmgr": {
+        "risk_level": "medium", "risk_score": 52, "risk_winner": "conservative",
+        "key_risks": [
+            "量能萎缩环境下左侧介入的流动性风险（假研究占位）",
+            "跌破强支撑后的趋势加速风险（假研究占位）",
+            "成长动能偏弱，估值缺乏盈利支撑（假研究占位）",
+        ],
+        "key_opportunities": [
+            "机构成本在下方构成心理支撑（假研究占位）",
+            "估值居中，下行空间相对有限（假研究占位）",
+        ],
+        "position_suggestion": "light",
+        "stop_loss_suggestion": "止损参考技术面 8.05，有效跌破强支撑 8.20 则无条件离场（假研究占位）",
+    },
+    "trader": {
+        "action": "watch", "action_strength": "weak",
+        "target_price": 9.60, "stop_loss": 8.05,
+        "take_profit_levels": [
+            {"price": 9.10, "portion": 40, "reason": "弱阻力位，减仓四成（假研究占位）"},
+            {"price": 9.35, "portion": 30, "reason": "震荡区间上沿，再减三成（假研究占位）"},
+            {"price": 9.60, "portion": 30, "reason": "强阻力位，清仓剩余（假研究占位）"},
+        ],
+        "confidence_components": {"signal_consistency": 9, "data_sufficiency": 16,
+                                  "debate_certainty": 10, "risk_controllability": 13,
+                                  "valuation_reasonableness": 12},
+        "confidence_total": 60, "confidence_label": "medium",
+        "position_advice": "light", "position_range": "10-30%",
+        "risk_score": 52, "risk_level": "medium", "time_horizon": "1-3月",
+        "entry_conditions": [
+            "放量站稳 9.10 弱阻力之上（假研究占位）",
+            "主力资金转为持续净流入（假研究占位）",
+            "基本面出现营收增速回升的确认信号（假研究占位）",
+        ],
+        "key_catalysts": [
+            "季报营收增速回升（假研究占位）",
+            "行业政策催化（假研究占位）",
+            "市场风格切换至低估值方向（假研究占位）",
+        ],
+        "reasoning": "三面结论一致中性、辩论空方微弱胜出、风险裁决偏保守：当前位置赔率一般，观望为主；假设入场则依托 8.20 强支撑，目标 9.60，止损 8.05，建议一至三成仓以内（假研究占位）",
+        "summary": "观望：等待量能与基本面任一方向确认，激进者小仓位左侧试探（假研究占位）",
+    },
 }
 
 # 冻结信封事件类型词表（契约冻结形状 F；主仓 events/live 端点按此解析）
@@ -481,6 +703,7 @@ class QueueWorker:
         bridge.emit("started", None, {
             "stock_code": run["stock_code"],
             "stock_name": run.get("stock_name") or "",
+            "plan": FAKE_PLAN,
         })
         for stage in range(1, TOTAL_STAGES + 1):
             if self._ownership_lost_flag():
@@ -490,11 +713,60 @@ class QueueWorker:
             bridge.emit("stage_start", stage, {"label": STAGE_NAMES[stage]})
             # 假研究阶段本体：sleep 期间绝不持有任何事务（连接在自动提交态）
             time.sleep(self._stage_seconds)
-            for i, agent_name in enumerate(STAGE_AGENTS[stage]):
-                speeches = FAKE_SPEECHES[agent_name]
-                bridge.emit("agent_msg", stage,
-                            {"text": speeches[min(i, len(speeches) - 1)]},
-                            agent=agent_name)
+            roster = STAGE_AGENTS[stage]
+            per_agent_said = {}
+            speech_ms = int(self._stage_seconds * 1000 / max(len(roster), 1))
+            # v8 阶段2/4 的复盘结构：终轮论点 + 逐轮全文（回放抽屉吃这个）
+            rounds_acc = {}
+            last_text = {}
+            for agent_cn, round_no, role_en, json_key in roster:
+                idx = per_agent_said.get(agent_cn, 0)
+                per_agent_said[agent_cn] = idx + 1
+                speeches = FAKE_SPEECHES[agent_cn]
+                text = speeches[min(idx, len(speeches) - 1)]
+                payload = {"text": text, "duration_ms": speech_ms}
+                if round_no is not None:
+                    payload["round"] = round_no
+                if role_en:
+                    payload["role"] = role_en
+                if json_key:
+                    payload["json"] = FAKE_ROLE_JSON[json_key]
+                bridge.emit("agent_msg", stage, payload, agent=agent_cn)
+                if round_no is not None and role_en:
+                    slot = rounds_acc.setdefault(round_no, {})
+                    slot[role_en] = {"success": True, "content": text,
+                                     "duration_ms": speech_ms, "error": None}
+                    last_text[role_en] = text
+            stage_end_data = {"duration_ms": int(self._stage_seconds * 1000)}
+            if stage == 2 and rounds_acc:
+                stage_end_data["result"] = {
+                    "success": True, "rounds_completed": len(rounds_acc),
+                    "total_messages": sum(len(v) for v in rounds_acc.values()),
+                    "bull_arguments": last_text.get("bull", ""),
+                    "bear_arguments": last_text.get("bear", ""),
+                    "duration_ms": int(self._stage_seconds * 1000),
+                    "rounds": [dict({"round": r}, **rounds_acc[r])
+                               for r in sorted(rounds_acc)],
+                    "summary": {
+                        "total_messages": sum(len(v) for v in rounds_acc.values()),
+                        "bull_messages": sum(
+                            1 for v in rounds_acc.values() if "bull" in v),
+                        "bear_messages": sum(
+                            1 for v in rounds_acc.values() if "bear" in v),
+                        "rounds_completed": len(rounds_acc),
+                    },
+                }
+            if stage == 4 and rounds_acc:
+                stage_end_data["result"] = {
+                    "success": True, "rounds_completed": len(rounds_acc),
+                    "total_messages": sum(len(v) for v in rounds_acc.values()),
+                    "aggressive_arguments": last_text.get("aggressive", ""),
+                    "conservative_arguments": last_text.get("conservative", ""),
+                    "neutral_arguments": last_text.get("neutral", ""),
+                    "duration_ms": int(self._stage_seconds * 1000),
+                    "rounds": [dict({"round": r}, **rounds_acc[r])
+                               for r in sorted(rounds_acc)],
+                }
             try:
                 ok = self._db_write_with_retry(
                     "阶段写", self._queue.update_stage, run_id, stage)
@@ -506,8 +778,7 @@ class QueueWorker:
                 self._abandon_run(run_id, "阶段写被终态守卫拒绝",
                                   bridge=bridge)
                 return
-            bridge.emit("stage_end", stage,
-                        {"duration_ms": int(self._stage_seconds * 1000)})
+            bridge.emit("stage_end", stage, stage_end_data)
             self._logger.info("run %d 阶段 %d/6 %s 完成",
                               run_id, stage, STAGE_NAMES[stage])
         # 六阶段跑完：先写旁听副本收尾（finalize + result.json），再摘牌
@@ -591,9 +862,23 @@ class QueueWorker:
                 return  # agent_heartbeat 等：旁听副本不落
             payload = dict(data or {})
             if frozen_type == "agent_msg":
-                # 冻结信封：agent_msg 必有 data.text
-                payload = {"text": (data or {}).get("content") or "",
-                           "duration_ms": (data or {}).get("duration_ms")}
+                # 冻结信封：agent_msg 必有 data.text；M4c 起透传结构化
+                # json / round / role（回看页角色卡吃这些字段，丢弃会
+                # 渲染成 undefined——2026-10-15 新华百货教训）
+                src = data or {}
+                payload = {"text": src.get("content") or "",
+                           "duration_ms": src.get("duration_ms")}
+                src_json = src.get("json")
+                if isinstance(src_json, dict) and src_json:
+                    payload["json"] = src_json
+                    for k in ("tool_calls", "iterations", "error_type"):
+                        if k in src:
+                            payload[k] = src[k]
+                if etype == "speech_done":
+                    if src.get("round") is not None:
+                        payload["round"] = src.get("round")
+                    if src.get("role"):
+                        payload["role"] = src.get("role")
             elif frozen_type == "finalize":
                 payload = self._real_finalize_payload(data or {})
             if frozen_type == "stage_start":
