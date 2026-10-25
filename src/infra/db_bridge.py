@@ -247,6 +247,21 @@ class DbQueue:
         )
         return cur.rowcount == 1
 
+    def set_run_identity(self, run_id: int, run_id_text: str) -> bool:
+        """领取后立即落 run_id/run_dir 文本列（守卫 state='running'）。
+
+        主后端直播端点靠行上的 run_dir 定位转录目录；此前只在 finish_run
+        收尾写，running 期间行上目录为空 -> 旁听全程"还没开始"（2026-10-25
+        果麦文化旁听定格事故根因）。迟到写（已终态）rowcount=0 返回 False。
+        """
+        now = int(time.time())
+        cur = self._conn().execute(
+            "UPDATE ai_runs SET run_id=?, run_dir=?, updated_at=?"
+            " WHERE id=? AND state='running'",
+            (run_id_text, run_id_text, now, run_id),
+        )
+        return cur.rowcount == 1
+
     def beat_worker(self) -> None:
         """worker 级心跳：空转也跳（健康灯与判死第二因子），同时刷新 pid。"""
         now = int(time.time())

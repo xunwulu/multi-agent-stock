@@ -672,6 +672,15 @@ class QueueWorker:
         run_id = run["id"]
         self._begin_run_tracking(run_id)
         run_id_text = _make_run_id(run["stock_code"])
+        # 领取即落身份：主后端直播端点靠行上 run_dir 找转录目录——只在收尾
+        # 写会让旁听全程"还没开始"（2026-10-25 事故）。失败仅告警不中断
+        # （锁超时后收尾 finish_run 仍会补写，研究本体不受影响）
+        try:
+            self._db_write_with_retry("运行号落库", self._queue.set_run_identity,
+                                      run_id, run_id_text)
+        except sqlite3.OperationalError:
+            self._logger.warning("运行号落库连续锁超时（收尾时会补写）",
+                                 exc_info=True)
         run_dir_path = self._live_root / run_id_text
         # 桥绝不抛出：目录建不了也只是每次写失败计数，研究照跑（库是事实源）
         bridge = _FileEventBridge(
@@ -1266,6 +1275,28 @@ def _selftest_assertions(logger: logging.Logger, db_path: str,
         check("迟到心跳写被守卫拒绝", q.beat_run(rid) is False)
         check("迟到收尾写被守卫拒绝", q.finish_run(rid, FAKE_RESULT) is False)
         check("wal_checkpoint(TRUNCATE) 成功", q.checkpoint_truncate() is True)
+
+        # ---- 领取即落身份钉子（2026-10-25 旁听定格事故：running 期间行上
+        #      必须已有 run_dir，否则主后端 live 端点找不到转录文件——
+        #      主仓测试曾手工预埋该列恰好绕过这条断链，此钉封死）----
+        conn_seed = connect(db_path)
+        now2 = int(time.time())
+        conn_seed.execute(
+            "INSERT INTO ai_runs (stock_code, stock_name, report_period, version,"
+            " state, enqueued_at, context_json, created_at, updated_at)"
+            " VALUES ('600000.SH', '浦发银行', '2026-06-30', 1, 'queued',"
+            " ?, '{}', ?, ?)", (now2, now2, now2))
+        conn_seed.commit()
+        conn_seed.close()
+        claimed2 = q.claim_next()
+        check("钉子场景领取成功",
+              claimed2 is not None and claimed2["stock_code"] == "600000.SH")
+        ok_ident = q.set_run_identity(claimed2["id"], "r_600000_SH_20260101_000000")
+        row2 = q.fetch_one("SELECT run_id, run_dir, state FROM ai_runs WHERE id=?",
+                           (claimed2["id"],))
+        check("领取后立即落 run_id/run_dir（running 即可旁听）",
+              ok_ident and row2["run_dir"] == "r_600000_SH_20260101_000000"
+              and row2["state"] == "running")
 
         # ---- M4 旁听文件桥断言（任务书自测要求新增）----
         run_id_text = row["run_id"]
