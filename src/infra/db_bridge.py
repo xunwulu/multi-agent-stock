@@ -343,6 +343,27 @@ class DbQueue:
         )
         return cur.rowcount == 1
 
+    # -- 月度用量账本（W2+ 真研究模式产品化 P1，2026-10-27）--
+    # 表 ai_usage 由主后端建表（权属契约），worker 只写；SQL 与主仓
+    # ai_runs_service.record_usage 逐字一致（契约冻结：两仓不得偏离）。
+
+    def record_usage(self, tokens: int = 0) -> None:
+        """真研究完成时记账：当月行 +1 只 / +token 合计（upsert）。
+
+        只在真跑收尾成功后调用（假研究/自测绝不记账）；token 拿不到
+        传 0，绝不编数。
+        """
+        now = int(time.time())
+        ym = time.strftime("%Y-%m", time.localtime(now))
+        self._conn().execute(
+            "INSERT INTO ai_usage (ym, real_runs, tokens, updated_at)"
+            " VALUES (?, 1, ?, ?)"
+            " ON CONFLICT(ym) DO UPDATE SET"
+            " real_runs = real_runs + 1, tokens = tokens + excluded.tokens,"
+            " updated_at = excluded.updated_at",
+            (ym, max(int(tokens), 0), now),
+        )
+
     def startup_sweep(self) -> int:
         """启动扫尾：无条件把全部 running 收尸为 failed(swept_on_restart)。
 

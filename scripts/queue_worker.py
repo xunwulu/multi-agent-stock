@@ -959,14 +959,45 @@ class QueueWorker:
                               reason="pipeline_error", bridge=bridge)
             return
         if done:
+            # P1 月度账本：真研究完成 +1 只 / +token 合计（收割 result 全树
+            # 的 token_usage.total_tokens；拿不到记 0 绝不编数）。假研究不记。
+            tokens = self._harvest_tokens(result)
+            try:
+                self._db_write_with_retry(
+                    "用量记账", self._queue.record_usage, tokens)
+            except sqlite3.OperationalError:
+                self._logger.warning("用量记账连续锁超时（本月账少记一次）",
+                                     exc_info=True)
             self._logger.info(
-                "run %d 真跑收尾完成（运行号 %s）：verdict=%s act=%s",
+                "run %d 真跑收尾完成（运行号 %s）：verdict=%s act=%s tokens=%d",
                 db_run_id, run_id_text, finish_fields["verdict"],
-                finish_fields["act"])
+                finish_fields["act"], tokens)
         else:
             self._logger.warning(
                 "run %d 收尾写被终态守卫拒绝（所有权早已丢失），跳过",
                 db_run_id)
+
+    @staticmethod
+    def _harvest_tokens(result, _depth: int = 0) -> int:
+        """收割结果全树里各 agent 的 token_usage.total_tokens 求和。
+
+        agent_loop 每角色返回 {total_input,total_output,total_tokens,...}；
+        树含 tech/fund/news/debate rounds/risk/trader 等多层。深度护栏 6，
+        token_usage 内部不再下钻（per_iteration 是明细不重复计）。
+        """
+        total = 0
+        if _depth > 6 or not isinstance(result, (dict, list)):
+            return 0
+        items = result.items() if isinstance(result, dict) else enumerate(result)
+        for key, val in items:
+            if key == "token_usage" and isinstance(val, dict):
+                t = val.get("total_tokens")
+                if isinstance(t, (int, float)):
+                    total += int(t)
+                continue
+            if isinstance(val, (dict, list)):
+                total += QueueWorker._harvest_tokens(val, _depth + 1)
+        return total
 
     @staticmethod
     def _real_finalize_payload(data: Dict) -> Dict:
@@ -1181,6 +1212,14 @@ CREATE TABLE IF NOT EXISTS ai_worker (
     db_signature  TEXT,
     stop_flag     INTEGER NOT NULL DEFAULT 0
 );
+
+-- 表18：月度用量账本（P1；与主仓 database.py 建表逐字一致）
+CREATE TABLE IF NOT EXISTS ai_usage (
+    ym          TEXT PRIMARY KEY,
+    real_runs   INTEGER NOT NULL DEFAULT 0,
+    tokens      INTEGER NOT NULL DEFAULT 0,
+    updated_at  INTEGER NOT NULL
+);
 """
 
 
@@ -1297,6 +1336,25 @@ def _selftest_assertions(logger: logging.Logger, db_path: str,
         check("领取后立即落 run_id/run_dir（running 即可旁听）",
               ok_ident and row2["run_dir"] == "r_600000_SH_20260101_000000"
               and row2["state"] == "running")
+
+        # ---- P1 月度账本钉子：假研究绝不记账 / token 收割 / 记账 upsert ----
+        usage_after_fake = q.fetch_one("SELECT COUNT(*) AS c FROM ai_usage")["c"]
+        check("假研究全程零记账（ai_usage 空）", usage_after_fake == 0)
+        fake_tree = {"combined": {"tech": {"token_usage": {"total_tokens": 100}},
+                                  "trader": {"token_usage": {"total_tokens": 50,
+                                                             "per_iteration": [{"t": 999}]}}},
+                     "debate": {"rounds": [{"bull": {"token_usage": {"total_tokens": 30}}}]}
+                     }
+        check("token 收割=全树求和且不钻明细(100+50+30)",
+              QueueWorker._harvest_tokens(fake_tree) == 180)
+        check("token 收割空树=0", QueueWorker._harvest_tokens({}) == 0)
+        q.record_usage(180)
+        q.record_usage(20)
+        row_u = q.fetch_one("SELECT real_runs, tokens FROM ai_usage"
+                            " WHERE ym=strftime('%Y-%m','now')")
+        check("记账 upsert（2只/200 tokens）",
+              row_u is not None and row_u["real_runs"] == 2
+              and row_u["tokens"] == 200)
 
         # ---- M4 旁听文件桥断言（任务书自测要求新增）----
         run_id_text = row["run_id"]
