@@ -1,0 +1,16 @@
+FROM python:3.12-slim
+
+ENV PYTHONIOENCODING=utf-8 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /repo
+
+# AI 仓 requirements（tushare/akshare 较重；缓存层隔离加速）
+COPY requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
+
+# 代码由挂载卷提供
+# 运行：docker run --rm -v "$(pwd):/repo" mas:312 python -X utf8 -m pytest tests/ -q
+# 自检：docker run --rm -v "$(pwd):/repo" mas:312 python -X utf8 scripts/queue_worker.py --selftest

@@ -1,0 +1,11 @@
+# P3（2026-10-28）：跨平台换行统一
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+Dockerfile* text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.svg text eol=lf
+*.db binary
+*.vhdx binary
