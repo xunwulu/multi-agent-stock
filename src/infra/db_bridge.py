@@ -79,28 +79,54 @@ def connect(db_path: Optional[str] = None) -> sqlite3.Connection:
     return conn
 
 
-# ---- 单实例锁（照抄 w2_mock_ai_worker.mode_lockchild 的锁语义）----
+# ---- 单实例锁（双平台：win=msvcrt 字节锁 / posix=fcntl.flock 整文件锁）----
+# P3 跨平台移植（2026-10-28）：两平台均为内核级锁——进程死亡（含硬杀）
+# OS 自动释放，无僵尸锁清理逻辑。语义等价表见主仓
+# docs/development/2026-10-27-p3-appendix-lock.md
+
+
+def _on_windows() -> bool:
+    """平台分支判据：sys.platform（单测可 monkeypatch）；全仓统一用此判据。"""
+    return sys.platform == "win32"
+
+
+def _try_lock_nb(handle) -> None:
+    """非阻塞加锁：win 锁 1 字节 @0（故先 seek(0)）/ posix flock 整文件。"""
+    if _on_windows():
+        import msvcrt
+        handle.seek(0)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def _unlock(handle) -> None:
+    """释放锁（幂等；失败不致命——进程退出后内核强制释放）。"""
+    if _on_windows():
+        import msvcrt
+        handle.seek(0)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def acquire_instance_lock(lockfile: str):
-    """msvcrt 单实例锁：锁 1 字节非阻塞；被占则礼让退出（退出码 42）。
+    """单实例锁：非阻塞；被占则礼让退出（退出码 42）。
 
     - 进程死亡 OS 自动释放（不需要僵尸锁清理逻辑）
     - 返回文件句柄，调用方持有到进程退出（句柄一关锁即释放）
     - 锁文件内容写入 pid，纯诊断用途（锁语义不依赖文件内容）
+    - 红线：锁文件绝不删除/改名（posix 上 unlink 被 flock 的文件不报错，
+      下一个 open 会建新 inode 轻松拿锁——互斥瞬间归零）
     """
-    try:
-        import msvcrt
-    except ImportError as e:  # 非 Windows 平台：明确报错而不是裸崩
-        raise RuntimeError("单实例锁依赖 msvcrt，仅支持 Windows 平台") from e
-
     path = Path(lockfile)
     if path.parent and not path.parent.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
     handle = open(path, "a+b")
-    handle.seek(0)
     try:
-        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        _try_lock_nb(handle)
     except OSError:
         # 锁被占 = 已有 worker 实例活着：礼让退出（supervisor 见 42 不计故障）
         logger.info("单实例锁已被占用（已有 worker 存活），本进程礼让退出：%s", path)
@@ -118,7 +144,8 @@ def acquire_instance_lock(lockfile: str):
         handle.flush()
     except OSError:
         logger.warning("锁文件写入 pid 失败（不影响锁语义）", exc_info=True)
-    logger.info("已获取单实例锁：path=%s pid=%d", path, os.getpid())
+    backend = "msvcrt" if _on_windows() else "flock"
+    logger.info("已获取单实例锁：path=%s pid=%d backend=%s", path, os.getpid(), backend)
     return handle
 
 
@@ -127,9 +154,7 @@ def release_instance_lock(handle) -> None:
     if handle is None:
         return
     try:
-        import msvcrt
-        handle.seek(0)
-        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        _unlock(handle)
     except (OSError, ImportError):
         # 解锁失败不致命：进程退出后 OS 强制释放该锁
         logger.warning("释放单实例锁失败（进程退出后 OS 会强制释放）", exc_info=True)
