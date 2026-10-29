@@ -60,7 +60,7 @@ class DebateLoop:
         fund_report: dict,
         max_rounds: int = 2,
         news_report: dict | None = None,
-        on_speech: callable | None = None,
+        on_speech=None,  # callable | None（Python 3.12 不支持 callable|None 语法）
     ) -> dict:
         """
         运行完整辩论循环

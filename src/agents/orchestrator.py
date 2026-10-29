@@ -174,10 +174,10 @@ class MultiAgentOrchestrator:
         max_iterations: int = 10,
         debate_rounds: int = 2,
         skip_debate: bool = False,
-        on_event: callable | None = None,
+        on_event=None,
         stock_name: str = "",
         research_context: dict | None = None,
-        cancel_check: callable | None = None,
+        cancel_check=None,
     ) -> dict:
         """
         运行完整的分析流程（对外永不抛：取消等异常在顶层转正常返回）
@@ -246,10 +246,10 @@ class MultiAgentOrchestrator:
         max_iterations: int = 10,
         debate_rounds: int = 2,
         skip_debate: bool = False,
-        on_event: callable | None = None,
+        on_event=None,
         stock_name: str = "",
         research_context: dict | None = None,
-        cancel_check: callable | None = None,
+        cancel_check=None,
     ) -> dict:
         """六阶段编排本体（run_analysis 的实现；签名/语义见其 docstring）。"""
         start_time = time.time()

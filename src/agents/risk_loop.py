@@ -61,7 +61,7 @@ class RiskLoop:
         reports_summary: str,
         max_rounds: int = 1,
         deadline: float = None,
-        on_speech: callable | None = None,
+        on_speech=None,
     ) -> dict:
         """
         运行三方风险辩论
